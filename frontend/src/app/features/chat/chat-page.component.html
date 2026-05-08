@@ -1,0 +1,41 @@
+<section class="chat-layout">
+  <aside class="chat-layout__rail">
+    <button class="chat-layout__new">Nuova chat</button>
+    <div class="chat-layout__history">
+      <button *ngFor="let conversation of chatApi.conversations()" class="chat-layout__history-item">
+        {{ conversation.title }}
+      </button>
+    </div>
+  </aside>
+
+  <section class="chat-layout__thread">
+    <div class="chat-layout__messages">
+      <article
+        *ngFor="let message of messages()"
+        class="chat-layout__message"
+        [class.chat-layout__message--user]="message.actorType === 'user'"
+      >
+        <div class="chat-layout__bubble">
+          <strong>{{ message.actorType === 'user' ? 'Tu' : 'AssistDoc' }}</strong>
+          <p>{{ message.body }}</p>
+        </div>
+      </article>
+    </div>
+
+    <form class="chat-layout__composer" (ngSubmit)="submit()">
+      <textarea
+        [ngModel]="prompt()"
+        (ngModelChange)="prompt.set($event)"
+        name="prompt"
+        rows="3"
+        placeholder="Fai una domanda sui documenti del tenant"
+      ></textarea>
+      <button type="submit">Invia</button>
+    </form>
+  </section>
+
+  <aside class="chat-layout__citations">
+    <app-citation-panel [citations]="lastAssistantCitations()" />
+  </aside>
+</section>
+

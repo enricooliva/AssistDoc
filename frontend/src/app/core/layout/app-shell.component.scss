@@ -1,0 +1,87 @@
+.shell {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+}
+
+.shell__sidebar {
+  background: #101820;
+  color: #f5f7fa;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.shell__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.shell__brand-mark,
+.shell__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: #2456d6;
+  color: #fff;
+  font-weight: 700;
+}
+
+.shell__brand-name {
+  font-weight: 700;
+}
+
+.shell__brand-subtitle,
+.shell__user small {
+  color: #9eb0c1;
+}
+
+.shell__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shell__nav-item {
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+  background: transparent;
+}
+
+.shell__nav-item--active {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.shell__main {
+  padding: 24px;
+}
+
+.shell__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.shell__header h1 {
+  margin: 0 0 6px;
+  font-size: 28px;
+}
+
+.shell__header p {
+  margin: 0;
+  color: #5d6b79;
+}
+
+.shell__user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+

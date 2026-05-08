@@ -1,0 +1,102 @@
+.chat-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr) 320px;
+  gap: 20px;
+  min-height: calc(100vh - 140px);
+}
+
+.chat-layout__rail,
+.chat-layout__thread,
+.chat-layout__citations {
+  background: #fff;
+  border: 1px solid #d7dfe8;
+  border-radius: 8px;
+}
+
+.chat-layout__rail {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chat-layout__new,
+.chat-layout__history-item,
+.chat-layout__composer button {
+  border: 0;
+  border-radius: 8px;
+  background: #2456d6;
+  color: #fff;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.chat-layout__history {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chat-layout__history-item {
+  background: #eef3ff;
+  color: #1b3d92;
+}
+
+.chat-layout__thread {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  overflow: hidden;
+}
+
+.chat-layout__messages {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow: auto;
+}
+
+.chat-layout__message {
+  display: flex;
+}
+
+.chat-layout__message--user {
+  justify-content: flex-end;
+}
+
+.chat-layout__bubble {
+  max-width: 720px;
+  background: #f4f6f8;
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.chat-layout__message--user .chat-layout__bubble {
+  background: #e7efff;
+}
+
+.chat-layout__bubble p {
+  margin: 8px 0 0;
+  line-height: 1.5;
+}
+
+.chat-layout__composer {
+  border-top: 1px solid #d7dfe8;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+}
+
+.chat-layout__composer textarea {
+  resize: none;
+  border: 1px solid #c6d0db;
+  border-radius: 8px;
+  padding: 12px;
+  min-height: 92px;
+}
+
+.chat-layout__citations {
+  padding: 16px;
+}
+

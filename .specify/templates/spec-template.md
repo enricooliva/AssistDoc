@@ -95,6 +95,28 @@
 - **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
 - **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
 
+### API & Contract Requirements *(mandatory for API-backed features)*
+
+- Define each REST endpoint required by this feature.
+- Specify request schema, response schema, validation rules, and standardized
+  error formats for each endpoint.
+- Specify authentication requirements for each endpoint.
+- Specify authorization roles for each endpoint.
+- State whether the feature introduces or updates a versioned contract.
+
+### Workflow & State Requirements *(mandatory when entities have lifecycle state)*
+
+- List the entity states involved in this feature.
+- List allowed transitions, the role responsible for each transition, and side
+  effects.
+- Define the audit trail data that MUST be recorded for every transition.
+
+### UI & Localization Requirements *(mandatory for frontend work)*
+
+- All UI text MUST be defined for Italian (`it-IT`).
+- Forms MUST specify validation, error-message, and loading-state behavior.
+- Tables MUST specify pagination, filtering, and sorting behavior when used.
+
 ### Key Entities *(include if feature involves data)*
 
 - **[Entity 1]**: [What it represents, key attributes without implementation]
@@ -126,3 +148,9 @@
 - [Assumption about scope boundaries, e.g., "Mobile support is out of scope for v1"]
 - [Assumption about data/environment, e.g., "Existing authentication system will be reused"]
 - [Dependency on existing system/service, e.g., "Requires access to the existing user profile API"]
+
+## Compliance Notes *(mandatory)*
+
+- Note any constitution constraints that materially shape this feature.
+- If complexity beyond the simplest viable solution is required, justify it and
+  name the simpler alternative that was rejected.

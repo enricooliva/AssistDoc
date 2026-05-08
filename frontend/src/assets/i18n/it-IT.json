@@ -1,0 +1,17 @@
+{
+  "app.title": "AssistDoc",
+  "auth.signIn.title": "Accedi ad AssistDoc",
+  "auth.signIn.error": "Accesso non riuscito.",
+  "chat.title": "Assistente documentale privato",
+  "chat.empty": "Nessun messaggio disponibile.",
+  "chat.loading": "Sto cercando nei documenti del tenant...",
+  "chat.input.placeholder": "Fai una domanda sui documenti del tenant",
+  "chat.insufficient": "Non ho trovato informazioni sufficienti nei documenti del tenant.",
+  "citations.title": "Citazioni",
+  "documents.title": "Documenti",
+  "documents.upload": "Carica documento",
+  "documents.upload.success": "Documento inviato in coda.",
+  "documents.upload.error": "Nome file obbligatorio.",
+  "audit.title": "Audit",
+  "audit.filters": "Filtri audit"
+}

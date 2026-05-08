@@ -31,7 +31,23 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- Specification exists and contains no unresolved `[NEEDS CLARIFICATION]`.
+- Planned scope traces to documented requirements and user stories.
+- Architecture preserves REST API-first boundaries and does not bypass APIs.
+- Backend design follows `Controller -> Service -> Repository -> Model`.
+- Business rules, workflow transitions, and transaction boundaries live in
+  Services.
+- Contracts are identified for every API, including schemas, validation, auth,
+  and error formats.
+- Test-first coverage is planned before implementation starts:
+  API success/failure, authorization, workflow transition, component, and
+  critical Playwright E2E tests as applicable.
+- Security design enforces stateless JWT auth, SSO outside local, and RBAC with
+  endpoint-level role declarations.
+- Frontend plan preserves Angular SPA module boundaries and Italian (`it-IT`)
+  localization requirements.
+- Any added complexity is explicitly justified with a simpler alternative and a
+  rollback strategy.
 
 ## Project Structure
 

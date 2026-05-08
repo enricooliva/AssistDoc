@@ -1,0 +1,35 @@
+<div class="shell">
+  <aside class="shell__sidebar">
+    <div class="shell__brand">
+      <div class="shell__brand-mark">A</div>
+      <div>
+        <div class="shell__brand-name">AssistDoc</div>
+        <div class="shell__brand-subtitle">{{ tenant()?.name }}</div>
+      </div>
+    </div>
+
+    <nav class="shell__nav">
+      <a class="shell__nav-item" routerLink="/" routerLinkActive="shell__nav-item--active" [routerLinkActiveOptions]="{ exact: true }">Chat</a>
+      <a class="shell__nav-item" routerLink="/documents" routerLinkActive="shell__nav-item--active">Documenti</a>
+      <a class="shell__nav-item" routerLink="/audit" routerLinkActive="shell__nav-item--active">Audit</a>
+    </nav>
+  </aside>
+
+  <main class="shell__main">
+    <header class="shell__header">
+      <div>
+        <h1>Assistente documentale privato</h1>
+        <p>Risposte contestuali solo dai documenti del tenant.</p>
+      </div>
+      <div class="shell__user">
+        <div class="shell__avatar">{{ initials() }}</div>
+        <div>
+          <div>{{ session()?.user?.fullName }}</div>
+          <small>{{ session()?.user?.role }}</small>
+        </div>
+      </div>
+    </header>
+
+    <router-outlet />
+  </main>
+</div>
