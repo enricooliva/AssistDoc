@@ -7,10 +7,9 @@ class TenantContextService
     public function fromUser(array $user): array
     {
         return [
-            'id' => $user['tenant_id'],
-            'name' => 'AssistDoc Demo',
-            'slug' => 'assistdoc-demo',
+            'id' => (string) $user['tenant_id'],
+            'name' => $user['tenant_name'],
+            'slug' => $user['tenant_slug'],
         ];
     }
 }
-

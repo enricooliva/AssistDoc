@@ -21,6 +21,7 @@ return new class extends Migration
             $table->string('role', 32)->default('viewer');
             $table->string('auth_provider', 16)->default('local');
             $table->string('status', 32)->default('active');
+            $table->timestamp('last_login_at')->nullable();
         });
 
         Schema::create('role_assignments', function (Blueprint $table): void {
@@ -30,6 +31,7 @@ return new class extends Migration
             $table->string('role', 32);
             $table->foreignId('assigned_by_user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
+            $table->unique(['tenant_id', 'user_id']);
         });
 
         Schema::create('documents', function (Blueprint $table): void {
@@ -121,7 +123,7 @@ return new class extends Migration
         Schema::dropIfExists('role_assignments');
 
         Schema::table('users', function (Blueprint $table): void {
-            $table->dropColumn(['tenant_id', 'role', 'auth_provider', 'status']);
+            $table->dropColumn(['tenant_id', 'role', 'auth_provider', 'status', 'last_login_at']);
         });
 
         Schema::dropIfExists('tenants');

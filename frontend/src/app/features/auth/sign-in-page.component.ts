@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
@@ -24,9 +24,9 @@ import { AuthService } from '../../core/auth/auth.service';
           <input [(ngModel)]="password" name="password" type="password" required />
         </label>
 
-        <p class="signin__error" *ngIf="error()">{{ error() }}</p>
+        <p class="signin__error" *ngIf="error() || authFeedback()">{{ error() || authFeedback() }}</p>
 
-        <button type="submit">Entra</button>
+        <button type="submit" [disabled]="submitting()">{{ submitting() ? 'Accesso in corso...' : 'Entra' }}</button>
       </form>
     </section>
   `,
@@ -36,6 +36,7 @@ import { AuthService } from '../../core/auth/auth.service';
     label { display: grid; gap: 6px; color: #23313f; }
     input { border: 1px solid #c6d0db; border-radius: 8px; padding: 12px; }
     button { border: 0; border-radius: 8px; background: #2456d6; color: #fff; padding: 12px; }
+    button[disabled] { opacity: .7; cursor: wait; }
     .signin__error { color: #b42318; margin: 0; }
   `],
 })
@@ -46,14 +47,24 @@ export class SignInPageComponent {
   email = 'viewer@assistdoc.local';
   password = 'password123';
   readonly error = signal('');
+  readonly submitting = signal(false);
+  readonly authFeedback = computed(() => this.authService.feedback());
 
-  submit(): void {
+  constructor() {
+    this.authService.clearFeedback();
+  }
+
+  async submit(): Promise<void> {
+    this.error.set('');
+    this.submitting.set(true);
+
     try {
-      this.authService.signIn(this.email, this.password);
-      void this.router.navigateByUrl('/');
+      await this.authService.signIn(this.email, this.password);
+      await this.router.navigateByUrl('/');
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : 'Accesso non riuscito.');
+    } finally {
+      this.submitting.set(false);
     }
   }
 }
-

@@ -2,25 +2,36 @@
 
 namespace App\Repositories;
 
+use App\Models\AuditEvent;
+
 class AuditEventRepository
 {
     public function record(array $event): array
     {
-        return $event;
+        return AuditEvent::query()->create($event)->toArray();
     }
 
     public function query(string $tenantId, array $filters = []): array
     {
-        return [[
-            'id' => 'audit-001',
-            'actor' => $filters['actor'] ?? 'Admin Demo',
-            'eventType' => $filters['eventType'] ?? 'chat.question_submitted',
-            'targetType' => 'chat_conversation',
-            'targetId' => 'conv-001',
-            'outcome' => $filters['outcome'] ?? 'success',
-            'occurredAt' => now()->toIso8601String(),
-            'tenantId' => $tenantId,
-        ]];
+        $query = AuditEvent::query()->where('tenant_id', $tenantId);
+
+        if ($filters['eventType'] ?? null) {
+            $query->where('event_type', $filters['eventType']);
+        }
+
+        if ($filters['outcome'] ?? null) {
+            $query->where('outcome', $filters['outcome']);
+        }
+
+        return $query->latest('occurred_at')->get()->map(fn (AuditEvent $event) => [
+            'id' => (string) $event->id,
+            'actor' => $event->actor?->name,
+            'eventType' => $event->event_type,
+            'targetType' => $event->target_type,
+            'targetId' => $event->target_id ? (string) $event->target_id : null,
+            'outcome' => $event->outcome,
+            'occurredAt' => $event->occurred_at?->toIso8601String(),
+            'tenantId' => (string) $event->tenant_id,
+        ])->all();
     }
 }
-

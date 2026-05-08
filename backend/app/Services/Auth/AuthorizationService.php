@@ -15,7 +15,7 @@ class AuthorizationService
         $allowed = in_array($user['role'], $allowedRoles, true);
 
         if (! $allowed) {
-            $this->auditService->record('authorization.denied', $user['tenant_id'], $user['id'], [
+            $this->auditService->record('auth.role_denied', $user['tenant_id'], $user['id'], [
                 'role' => $user['role'],
                 'allowedRoles' => $allowedRoles,
             ], 'denied');
@@ -24,4 +24,3 @@ class AuthorizationService
         return $allowed;
     }
 }
-

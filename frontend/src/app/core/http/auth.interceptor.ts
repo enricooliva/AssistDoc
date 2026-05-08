@@ -1,5 +1,6 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
+import { catchError, throwError } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
 
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
@@ -16,6 +17,17 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
         Authorization: `Bearer ${session.token}`,
       },
     }),
+  ).pipe(
+    catchError((error) => {
+      if (error.status === 401) {
+        authService.handleUnauthorized();
+      }
+
+      if (error.status === 403) {
+        authService.setAccessDenied();
+      }
+
+      return throwError(() => error);
+    }),
   );
 };
-

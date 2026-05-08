@@ -18,7 +18,7 @@ export const appRoutes: Routes = [
     children: [
       { path: '', pathMatch: 'full', component: ChatPageComponent },
       { path: 'documents', component: DocumentsPageComponent },
-      { path: 'audit', component: AuditPageComponent },
+      { path: 'audit', component: AuditPageComponent, canActivate: [authGuard], data: { roles: ['super-admin'] } },
     ],
   },
 ];

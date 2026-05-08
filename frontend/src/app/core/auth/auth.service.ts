@@ -1,4 +1,6 @@
-import { Injectable, signal } from '@angular/core';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Injectable, inject, signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 
 export interface SessionState {
   token: string;
@@ -15,46 +17,151 @@ export interface SessionState {
   };
 }
 
-@Injectable({ providedIn: 'root' })
-export class AuthService {
-  readonly session = signal<SessionState | null>({
-    token: btoa('viewer@assistdoc.local|tenant-001|viewer'),
-    user: {
-      id: 'user-viewer-001',
-      email: 'viewer@assistdoc.local',
-      fullName: 'Viewer Demo',
-      role: 'viewer',
-    },
+interface AuthApiResponse {
+  token: string;
+  token_type: 'Bearer';
+  expires_in: number;
+  user: {
+    id: string;
+    email: string;
+    full_name: string;
+    role: 'super-admin' | 'operator' | 'viewer';
     tenant: {
-      id: 'tenant-001',
-      name: 'AssistDoc Demo',
-      slug: 'assistdoc-demo',
-    },
-  });
-
-  signIn(email: string, password: string): void {
-    if (!email || !password) {
-      throw new Error('Credenziali mancanti');
-    }
-
-    this.session.set({
-      token: btoa(`${email}|tenant-001|viewer`),
-      user: {
-        id: 'user-' + email.replace(/[^a-z0-9]/gi, '').toLowerCase(),
-        email,
-        fullName: 'Utente AssistDoc',
-        role: email.includes('admin') ? 'super-admin' : 'viewer',
-      },
-      tenant: {
-        id: 'tenant-001',
-        name: 'AssistDoc Demo',
-        slug: 'assistdoc-demo',
-      },
-    });
-  }
-
-  signOut(): void {
-    this.session.set(null);
-  }
+      id: string;
+      name: string;
+      slug: string;
+    };
+  };
 }
 
+interface CurrentUserResponse {
+  user: AuthApiResponse['user'];
+}
+
+const STORAGE_KEY = 'assistdoc.session';
+
+@Injectable({ providedIn: 'root' })
+export class AuthService {
+  private readonly http = inject(HttpClient);
+
+  readonly session = signal<SessionState | null>(this.readStoredSession());
+  readonly feedback = signal('');
+
+  async restoreSession(): Promise<void> {
+    const current = this.session();
+
+    if (!current?.token) {
+      return;
+    }
+
+    try {
+      const response = await firstValueFrom(
+        this.http.get<CurrentUserResponse>('/api/v1/auth/me'),
+      );
+
+      this.persistSession({
+        token: current.token,
+        user: {
+          id: response.user.id,
+          email: response.user.email,
+          fullName: response.user.full_name,
+          role: response.user.role,
+        },
+        tenant: response.user.tenant,
+      });
+    } catch {
+      this.clearSession(false);
+    }
+  }
+
+  async signIn(email: string, password: string): Promise<void> {
+    this.feedback.set('');
+
+    try {
+      const response = await firstValueFrom(
+        this.http.post<AuthApiResponse>('/api/v1/auth/login', { email, password }),
+      );
+
+      this.persistSession({
+        token: response.token,
+        user: {
+          id: response.user.id,
+          email: response.user.email,
+          fullName: response.user.full_name,
+          role: response.user.role,
+        },
+        tenant: response.user.tenant,
+      });
+    } catch (error) {
+      const message = this.extractErrorMessage(error, 'Accesso non riuscito.');
+      this.feedback.set(message);
+      throw new Error(message);
+    }
+  }
+
+  async signOut(): Promise<void> {
+    try {
+      if (this.session()?.token) {
+        await firstValueFrom(this.http.post('/api/v1/auth/logout', {}));
+      }
+    } finally {
+      this.clearSession();
+    }
+  }
+
+  hasAnyRole(roles: string[]): boolean {
+    const currentRole = this.session()?.user.role;
+
+    return !!currentRole && roles.includes(currentRole);
+  }
+
+  clearFeedback(): void {
+    this.feedback.set('');
+  }
+
+  handleUnauthorized(message = 'La sessione è scaduta. Effettua nuovamente l\'accesso.'): void {
+    this.clearSession(false);
+    this.feedback.set(message);
+  }
+
+  setAccessDenied(message = 'Operazione non consentita per il ruolo corrente.'): void {
+    this.feedback.set(message);
+  }
+
+  private persistSession(session: SessionState): void {
+    this.session.set(session);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+  }
+
+  private clearSession(clearFeedback = true): void {
+    this.session.set(null);
+    localStorage.removeItem(STORAGE_KEY);
+
+    if (clearFeedback) {
+      this.feedback.set('');
+    }
+  }
+
+  private readStoredSession(): SessionState | null {
+    const value = localStorage.getItem(STORAGE_KEY);
+
+    if (!value) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(value) as SessionState;
+    } catch {
+      localStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+  }
+
+  private extractErrorMessage(error: unknown, fallback: string): string {
+    if (error instanceof HttpErrorResponse) {
+      return error.error?.error?.message ?? fallback;
+    }
+
+    return fallback;
+  }
+}

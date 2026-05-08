@@ -2,33 +2,43 @@
 
 namespace App\Repositories;
 
+use App\Models\Document;
+
 class DocumentRepository
 {
     public function listForTenant(string $tenantId): array
     {
-        return [[
-            'id' => 'doc-001',
-            'filename' => 'Manuale Aziendale.pdf',
-            'mediaType' => 'application/pdf',
-            'sizeBytes' => 124000,
-            'status' => 'indexed',
-            'uploadedAt' => now()->toIso8601String(),
-            'lastStatusAt' => now()->toIso8601String(),
-            'indexedAt' => now()->toIso8601String(),
-            'failureReason' => null,
-            'tenantId' => $tenantId,
-        ]];
+        return Document::query()
+            ->where('tenant_id', $tenantId)
+            ->orderByDesc('uploaded_at')
+            ->get()
+            ->map(fn (Document $document) => $this->mapDocument($document))
+            ->all();
     }
 
     public function find(string $tenantId, string $documentId): ?array
     {
-        foreach ($this->listForTenant($tenantId) as $document) {
-            if ($document['id'] === $documentId) {
-                return $document;
-            }
-        }
+        $document = Document::query()
+            ->where('tenant_id', $tenantId)
+            ->whereKey($documentId)
+            ->first();
 
-        return null;
+        return $document ? $this->mapDocument($document) : null;
+    }
+
+    private function mapDocument(Document $document): array
+    {
+        return [
+            'id' => (string) $document->id,
+            'filename' => $document->filename,
+            'mediaType' => $document->media_type,
+            'sizeBytes' => $document->size_bytes,
+            'status' => $document->status,
+            'uploadedAt' => $document->uploaded_at?->toIso8601String(),
+            'lastStatusAt' => $document->last_status_at?->toIso8601String(),
+            'indexedAt' => $document->indexed_at?->toIso8601String(),
+            'failureReason' => $document->failure_reason,
+            'tenantId' => (string) $document->tenant_id,
+        ];
     }
 }
-

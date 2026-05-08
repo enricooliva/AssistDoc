@@ -5,6 +5,9 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -26,6 +29,7 @@ class User extends Authenticatable
         'role',
         'auth_provider',
         'status',
+        'last_login_at',
     ];
 
     /**
@@ -47,7 +51,23 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'last_login_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
+    }
+
+    public function roleAssignment(): HasOne
+    {
+        return $this->hasOne(RoleAssignment::class);
+    }
+
+    public function auditEvents(): HasMany
+    {
+        return $this->hasMany(AuditEvent::class, 'actor_user_id');
     }
 }

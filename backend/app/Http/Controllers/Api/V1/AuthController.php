@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\CurrentUserRequest;
+use App\Http\Requests\LoginRequest;
+use App\Http\Requests\LogoutRequest;
 use App\Services\Auth\AuthService;
 use App\Services\Auth\TenantContextService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class AuthController extends Controller
 {
@@ -16,34 +18,47 @@ class AuthController extends Controller
     ) {
     }
 
-    public function login(Request $request): JsonResponse
+    public function login(LoginRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string', 'min:8'],
+        $session = $this->authService->login(
+            $request->validated('email'),
+            $request->validated('password'),
+        );
+
+        if (! $session) {
+            return response()->json([
+                'error' => [
+                    'code' => 'UNAUTHENTICATED',
+                    'message' => 'Credenziali non valide o accesso non consentito.',
+                ],
+            ], 401);
+        }
+
+        return response()->json($session);
+    }
+
+    public function logout(LogoutRequest $request): JsonResponse
+    {
+        $user = $request->attributes->get('auth_user');
+        $this->authService->logout($request->bearerToken(), $user);
+
+        return response()->json([
+            'message' => 'Logout completed',
         ]);
-
-        return response()->json($this->authService->login($validated['email'], $validated['password']));
     }
 
-    public function logout(): JsonResponse
-    {
-        return response()->json([], 204);
-    }
-
-    public function me(Request $request): JsonResponse
+    public function me(CurrentUserRequest $request): JsonResponse
     {
         $user = $request->attributes->get('auth_user');
 
         return response()->json([
             'user' => [
-                'id' => $user['id'],
+                'id' => (string) $user['id'],
                 'email' => $user['email'],
-                'fullName' => $user['fullName'],
+                'full_name' => $user['full_name'],
                 'role' => $user['role'],
+                'tenant' => $this->tenantContextService->fromUser($user),
             ],
-            'tenant' => $this->tenantContextService->fromUser($user),
         ]);
     }
 }
-

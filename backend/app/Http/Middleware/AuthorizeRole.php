@@ -19,12 +19,13 @@ class AuthorizeRole
 
         if (! is_array($user) || ! $this->authorizationService->canAccess($user, $roles)) {
             return response()->json([
-                'code' => 'forbidden',
-                'message' => 'Operazione non consentita per il ruolo corrente.',
+                'error' => [
+                    'code' => 'ACCESS_DENIED',
+                    'message' => 'Operazione non consentita per il ruolo corrente.',
+                ],
             ], 403);
         }
 
         return $next($request);
     }
 }
-

@@ -13,6 +13,10 @@ class TenantSeeder extends Seeder
             ['slug' => 'assistdoc-demo'],
             ['name' => 'AssistDoc Demo', 'status' => 'active']
         );
+
+        Tenant::query()->updateOrCreate(
+            ['slug' => 'tenant-b'],
+            ['name' => 'Tenant B', 'status' => 'active']
+        );
     }
 }
-

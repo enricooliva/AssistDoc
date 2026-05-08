@@ -13,7 +13,6 @@ class AuditService
     public function record(string $eventType, string $tenantId, ?string $actorUserId, array $metadata = [], string $outcome = 'success'): array
     {
         return $this->repository->record([
-            'id' => 'audit-'.substr(md5($eventType.$tenantId.microtime(true)), 0, 8),
             'tenant_id' => $tenantId,
             'actor_user_id' => $actorUserId,
             'event_type' => $eventType,
@@ -23,4 +22,3 @@ class AuditService
         ]);
     }
 }
-
