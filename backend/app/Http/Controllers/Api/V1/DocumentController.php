@@ -27,7 +27,10 @@ class DocumentController extends Controller
         $user = $request->attributes->get('auth_user');
 
         return response()->json(
-            $this->documentService->create($user['tenant_id'], $user['id'], $request->validated()),
+            $this->documentService->create($user['tenant_id'], $user['id'], [
+                ...$request->validated(),
+                'file' => $request->file('file'),
+            ]),
             201
         );
     }
@@ -51,10 +54,26 @@ class DocumentController extends Controller
     {
         $user = $request->attributes->get('auth_user');
 
-        return response()->json(
-            $this->documentService->retry($user['tenant_id'], $user['id'], $documentId),
-            202
-        );
+        $result = $this->documentService->retry($user['tenant_id'], $user['id'], $documentId);
+
+        if (($result['status'] ?? null) === 'not_found') {
+            return response()->json([
+                'error' => [
+                    'code' => 'NOT_FOUND',
+                    'message' => 'Documento non trovato.',
+                ],
+            ], 404);
+        }
+
+        if (($result['status'] ?? null) !== 'queued') {
+            return response()->json([
+                'error' => [
+                    'code' => 'INVALID_DOCUMENT_STATE',
+                    'message' => 'Il documento non può essere rimesso in coda nello stato corrente.',
+                ],
+            ], 409);
+        }
+
+        return response()->json($result, 202);
     }
 }
-

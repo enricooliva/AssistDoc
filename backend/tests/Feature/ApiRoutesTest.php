@@ -16,6 +16,8 @@ class ApiRoutesTest extends TestCase
 
         $this->assertContains('api/v1/auth/login', $routes);
         $this->assertContains('api/v1/documents', $routes);
+        $this->assertContains('api/v1/documents/{documentId}', $routes);
+        $this->assertContains('api/v1/documents/{documentId}/retry', $routes);
         $this->assertContains('api/v1/search/queries', $routes);
         $this->assertContains('api/v1/chat/conversations', $routes);
         $this->assertContains('api/v1/audit-events', $routes);

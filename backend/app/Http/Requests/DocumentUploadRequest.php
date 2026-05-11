@@ -14,10 +14,8 @@ class DocumentUploadRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'filename' => ['required', 'string', 'max:255'],
-            'mediaType' => ['nullable', 'string', 'max:128'],
-            'sizeBytes' => ['nullable', 'integer', 'min:1'],
+            'file' => ['required', 'file', 'mimetypes:text/plain,text/markdown,application/pdf', 'max:5120'],
+            'sourceLabel' => ['nullable', 'string', 'max:255'],
         ];
     }
 }
-

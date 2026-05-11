@@ -2,8 +2,12 @@
 
 namespace App\Services\Documents;
 
+use App\Jobs\ProcessDocumentJob;
+use App\Models\Document;
 use App\Repositories\DocumentRepository;
 use App\Services\Audit\AuditService;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 class DocumentService
 {
@@ -15,31 +19,48 @@ class DocumentService
 
     public function list(string $tenantId): array
     {
+        $items = $this->documentRepository->listForTenant($tenantId);
+
         return [
-            'items' => $this->documentRepository->listForTenant($tenantId),
+            'items' => $items,
             'page' => 1,
             'perPage' => 25,
-            'total' => 1,
+            'total' => count($items),
         ];
     }
 
     public function create(string $tenantId, string $userId, array $payload): array
     {
-        $document = [
-            'id' => 'doc-'.substr(md5($payload['filename'].microtime(true)), 0, 8),
-            'filename' => $payload['filename'],
-            'mediaType' => $payload['mediaType'] ?? 'application/pdf',
-            'sizeBytes' => (int) ($payload['sizeBytes'] ?? 0),
+        /** @var UploadedFile $file */
+        $file = $payload['file'];
+        $storagePath = $file->storeAs(
+            sprintf('documents/%s', $tenantId),
+            sprintf('%s-%s', now()->timestamp, $file->getClientOriginalName()),
+        );
+
+        $document = $this->documentRepository->create([
+            'tenant_id' => $tenantId,
+            'uploaded_by_user_id' => $userId,
+            'filename' => $file->getClientOriginalName(),
+            'media_type' => $file->getMimeType() ?: 'application/octet-stream',
+            'storage_path' => $storagePath,
+            'size_bytes' => $file->getSize(),
             'status' => 'queued',
-            'uploadedAt' => now()->toIso8601String(),
-            'lastStatusAt' => now()->toIso8601String(),
-            'indexedAt' => null,
-            'failureReason' => null,
-        ];
+            'uploaded_at' => now(),
+            'last_status_at' => now(),
+            'indexed_at' => null,
+            'failure_reason' => null,
+        ]);
 
-        $this->auditService->record('document.uploaded', $tenantId, $userId, ['document_id' => $document['id']]);
+        $this->auditService->record('document.uploaded', $tenantId, $userId, [
+            'document_id' => (string) $document->id,
+            'filename' => $document->filename,
+            'storage_path' => $document->storage_path,
+        ]);
 
-        return $document;
+        ProcessDocumentJob::dispatchSync($tenantId, (string) $document->id);
+
+        return $this->show($tenantId, (string) $document->id) ?? [];
     }
 
     public function show(string $tenantId, string $documentId): ?array
@@ -49,12 +70,47 @@ class DocumentService
 
     public function retry(string $tenantId, string $userId, string $documentId): array
     {
+        $document = $this->documentRepository->findModel($tenantId, $documentId);
+        if (! $document) {
+            return [
+                'status' => 'not_found',
+                'documentId' => $documentId,
+            ];
+        }
+
+        if ($document->status !== 'failed') {
+            return [
+                'status' => $document->status,
+                'documentId' => $documentId,
+            ];
+        }
+
+        $document->status = 'queued';
+        $document->failure_reason = null;
+        $document->last_status_at = now();
+        $this->documentRepository->save($document);
+
         $this->auditService->record('document.retry_requested', $tenantId, $userId, ['document_id' => $documentId]);
+        ProcessDocumentJob::dispatchSync($tenantId, $documentId);
 
         return [
             'status' => 'queued',
             'documentId' => $documentId,
         ];
     }
-}
 
+    public function markStatus(Document $document, string $status, ?string $failureReason = null): Document
+    {
+        $document->status = $status;
+        $document->last_status_at = now();
+        $document->failure_reason = $failureReason;
+        if ($status === 'ready') {
+            $document->indexed_at = now();
+        }
+        if ($status !== 'ready') {
+            $document->indexed_at = null;
+        }
+
+        return $this->documentRepository->save($document);
+    }
+}
