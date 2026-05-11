@@ -2,7 +2,11 @@
 
 namespace App\Services\Chat;
 
+use App\DataTransferObjects\Chat\ChatConversationData;
+use App\DataTransferObjects\Chat\ChatExchangeData;
+use App\DataTransferObjects\Chat\ChatMessageData;
 use App\Repositories\ChatConversationRepository;
+use App\Repositories\MessageCitationRepository;
 use App\Services\AI\ChatCompletionService;
 use App\Services\Audit\AuditService;
 use App\Services\Search\SemanticSearchService;
@@ -13,6 +17,7 @@ class ChatService
         private readonly ChatConversationRepository $conversationRepository,
         private readonly SemanticSearchService $searchService,
         private readonly CitationService $citationService,
+        private readonly MessageCitationRepository $messageCitationRepository,
         private readonly ChatCompletionService $chatCompletionService,
         private readonly AuditService $auditService,
     ) {
@@ -20,50 +25,110 @@ class ChatService
 
     public function listConversations(string $tenantId, string $userId): array
     {
+        $items = $this->conversationRepository->listForUser($tenantId, $userId);
+
         return [
-            'items' => $this->conversationRepository->listForUser($tenantId, $userId),
+            'items' => $items,
             'page' => 1,
             'perPage' => 25,
-            'total' => 1,
+            'total' => $this->conversationRepository->countForUser($tenantId, $userId),
         ];
     }
 
     public function createConversation(string $tenantId, string $userId, ?string $title = null): array
     {
-        return $this->conversationRepository->create($tenantId, $userId, $title);
+        $conversation = $this->conversationRepository->create($tenantId, $userId, $title);
+
+        return ChatConversationData::fromModel($conversation)->toArray();
     }
 
-    public function answerQuestion(string $tenantId, string $userId, string $conversationId, string $question): array
+    public function showConversation(string $tenantId, string $userId, string $conversationId): ?array
     {
-        $search = $this->searchService->query($tenantId, $userId, $question);
-        $assistant = $this->chatCompletionService->answer($question, $search['results']);
-        $citations = $assistant['responseState'] === 'completed'
-            ? $this->citationService->fromSearchResults($search['results'])
-            : [];
+        $conversation = $this->conversationRepository->getThreadForUser($tenantId, $userId, $conversationId);
 
-        $this->auditService->record('chat.question_submitted', $tenantId, $userId, [
-            'conversation_id' => $conversationId,
-            'question' => $question,
-            'response_state' => $assistant['responseState'],
-        ]);
+        if (! $conversation) {
+            return null;
+        }
 
         return [
-            'conversationId' => $conversationId,
-            'userMessage' => [
-                'id' => 'msg-user-'.substr(md5($question), 0, 8),
-                'actorType' => 'user',
-                'body' => $question,
-                'createdAt' => now()->toIso8601String(),
-            ],
-            'assistantMessage' => [
-                'id' => 'msg-assistant-'.substr(md5($question.'assistant'), 0, 8),
-                'actorType' => 'assistant',
-                'body' => $assistant['body'],
-                'responseState' => $assistant['responseState'],
-                'citations' => $citations,
-                'createdAt' => now()->toIso8601String(),
-            ],
+            'conversation' => ChatConversationData::fromModel($conversation)->toArray(),
+            'messages' => $conversation->messages
+                ->map(fn ($message): array => ChatMessageData::fromModel($message)->toArray())
+                ->all(),
         ];
     }
-}
 
+    public function answerQuestion(string $tenantId, string $userId, string $conversationId, string $question): ?array
+    {
+        $conversation = $this->conversationRepository->findForUser($tenantId, $userId, $conversationId);
+
+        if (! $conversation) {
+            return null;
+        }
+
+        $userMessage = $this->conversationRepository->createMessage($conversation, 'user', $question);
+        $search = $this->searchService->query($tenantId, $userId, $question);
+        $supportingResults = $search['results'];
+
+        if (! $this->hasSufficientSupport($supportingResults)) {
+            $assistantPayload = [
+                'body' => 'Non ho trovato informazioni sufficienti nei documenti del tenant per rispondere in modo affidabile.',
+                'responseState' => 'insufficient_information',
+            ];
+            $citations = [];
+            $outcome = 'insufficient_information';
+        } else {
+            try {
+                $assistantPayload = $this->chatCompletionService->answer($question, $supportingResults);
+                $citations = $this->citationService->fromSearchResults($supportingResults);
+                $outcome = $assistantPayload['responseState'];
+            } catch (\Throwable) {
+                $assistantPayload = [
+                    'body' => 'Si è verificato un errore durante l\'elaborazione della risposta. Riprova tra poco.',
+                    'responseState' => 'failed',
+                ];
+                $citations = [];
+                $outcome = 'failed';
+            }
+        }
+
+        $assistantMessage = $this->conversationRepository->createMessage(
+            $conversation,
+            'assistant',
+            $assistantPayload['body'],
+            $assistantPayload['responseState']
+        );
+
+        if ($citations !== []) {
+            $this->messageCitationRepository->replaceForMessage($assistantMessage, $citations);
+        }
+
+        $assistantMessage->load(['citations.document']);
+
+        $this->auditService->record('chat.question_processed', $tenantId, $userId, [
+            'conversation_id' => $conversationId,
+            'question' => $question,
+            'response_state' => $assistantPayload['responseState'],
+            'supporting_references_returned' => $citations !== [],
+            'result_count' => count($supportingResults),
+        ], $outcome === 'failed' ? 'failure' : 'success', 'chat_conversation', $conversationId);
+
+        return (new ChatExchangeData(
+            conversationId: (string) $conversation->id,
+            userMessage: ChatMessageData::fromModel($userMessage),
+            assistantMessage: ChatMessageData::fromModel($assistantMessage),
+        ))->toArray();
+    }
+
+    private function hasSufficientSupport(array $results): bool
+    {
+        if ($results === []) {
+            return false;
+        }
+
+        $topScore = (float) ($results[0]['score'] ?? 0);
+        $topSnippet = trim((string) ($results[0]['quoteText'] ?? $results[0]['snippet'] ?? ''));
+
+        return $topScore >= 0.35 && $topSnippet !== '';
+    }
+}

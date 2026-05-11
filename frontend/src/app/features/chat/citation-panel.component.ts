@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input } from '@angular/core';
-import { Citation } from './chat-api.service';
+import { ChatCitation } from './chat.models';
 
 @Component({
   selector: 'app-citation-panel',
@@ -32,6 +32,5 @@ import { Citation } from './chat-api.service';
   `],
 })
 export class CitationPanelComponent {
-  @Input({ required: true }) citations: Citation[] = [];
+  @Input({ required: true }) citations: ChatCitation[] = [];
 }
-

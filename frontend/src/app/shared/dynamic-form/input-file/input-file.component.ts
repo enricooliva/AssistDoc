@@ -18,18 +18,18 @@ import { FieldType, FieldTypeConfig, FormlyModule } from '@ngx-formly/core';
       />
 
       <div class="document-file__group">
-        <input
-          type="text"
-          class="form-control"
-          [value]="fileName()"
-          [placeholder]="props.placeholder || 'Seleziona un documento'"
-          [readonly]="true"
+        <div
+          class="document-file__display"
+          [class.document-file__display--empty]="!formControl.value"
           [class.is-invalid]="showError"
-          (click)="openDialogSelectFile()"
           [formlyAttributes]="field"
-        />
+        >
+          <span class="document-file__name">
+            {{ fileName() || props.placeholder || 'Seleziona un documento' }}
+          </span>
+        </div>
         <button class="btn btn-outline-primary" type="button" (click)="openDialogSelectFile()" [disabled]="props.disabled">
-          Sfoglia
+          {{ formControl.value ? 'Sostituisci file' : 'Scegli file' }}
         </button>
         <button class="btn btn-outline-secondary" type="button" (click)="reset()" [disabled]="props.disabled || !formControl.value">
           Rimuovi
@@ -53,6 +53,26 @@ import { FieldType, FieldTypeConfig, FormlyModule } from '@ngx-formly/core';
       grid-template-columns: 1fr auto auto;
       gap: 8px;
       align-items: center;
+    }
+
+    .document-file__display {
+      min-height: calc(1.5em + 0.75rem + 2px);
+      padding: 0.375rem 0.75rem;
+      border: 1px solid #ced4da;
+      border-radius: 0.375rem;
+      background: #fff;
+      display: flex;
+      align-items: center;
+    }
+
+    .document-file__display--empty {
+      color: #6c757d;
+    }
+
+    .document-file__name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   `],
 })

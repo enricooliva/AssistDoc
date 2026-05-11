@@ -49,6 +49,11 @@ class QdrantService
         return false;
     }
 
+    public function reset(string $collection = 'documents'): void
+    {
+        unset(self::$collections[$collection]);
+    }
+
     public function search(string $collection, array $vector, array $filter = [], int $limit = 10): array
     {
         $matches = [];

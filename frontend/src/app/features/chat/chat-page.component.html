@@ -1,15 +1,37 @@
 <section class="chat-layout">
   <aside class="chat-layout__rail">
-    <button class="chat-layout__new">Nuova chat</button>
+    <button class="chat-layout__new" type="button" (click)="startConversation()" [disabled]="loading() || submitting()">
+      Nuova chat
+    </button>
     <div class="chat-layout__history">
-      <button *ngFor="let conversation of chatApi.conversations()" class="chat-layout__history-item">
+      <button
+        *ngFor="let conversation of conversations()"
+        class="chat-layout__history-item"
+        type="button"
+        [class.chat-layout__history-item--active]="conversation.id === activeConversationId()"
+        (click)="openConversation(conversation.id)"
+      >
         {{ conversation.title }}
       </button>
     </div>
   </aside>
 
   <section class="chat-layout__thread">
+    <header class="chat-layout__thread-header">
+      <div>
+        <h2>{{ activeConversation()?.title ?? 'Nuova conversazione' }}</h2>
+        <p>Le risposte vengono generate solo da evidenze del tenant e mostrano citazioni verificabili.</p>
+      </div>
+      <span *ngIf="submitting()" class="chat-layout__status">Sto cercando nei documenti del tenant...</span>
+    </header>
+
+    <p *ngIf="feedback()" class="chat-layout__feedback">{{ feedback() }}</p>
+
     <div class="chat-layout__messages">
+      <p *ngIf="loading()" class="chat-layout__empty">Caricamento conversazione in corso...</p>
+      <p *ngIf="!loading() && !messages().length" class="chat-layout__empty">
+        Nessun messaggio disponibile. Inizia con una domanda sui documenti del tenant.
+      </p>
       <article
         *ngFor="let message of messages()"
         class="chat-layout__message"
@@ -17,6 +39,15 @@
       >
         <div class="chat-layout__bubble">
           <strong>{{ message.actorType === 'user' ? 'Tu' : 'AssistDoc' }}</strong>
+          <span *ngIf="message.responseState && message.actorType === 'assistant'" class="chat-layout__message-state">
+            {{
+              message.responseState === 'answered'
+                ? 'Risposta supportata'
+                : message.responseState === 'insufficient_information'
+                  ? 'Informazioni insufficienti'
+                  : 'Risposta non disponibile'
+            }}
+          </span>
           <p>{{ message.body }}</p>
         </div>
       </article>
@@ -29,8 +60,9 @@
         name="prompt"
         rows="3"
         placeholder="Fai una domanda sui documenti del tenant"
+        [disabled]="submitting()"
       ></textarea>
-      <button type="submit">Invia</button>
+      <button type="submit" [disabled]="submitting()">{{ submitting() ? 'Invio...' : 'Invia' }}</button>
     </form>
   </section>
 
@@ -38,4 +70,3 @@
     <app-citation-panel [citations]="lastAssistantCitations()" />
   </aside>
 </section>
-

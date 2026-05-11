@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ChatMessage extends Model
 {
@@ -19,5 +21,18 @@ class ChatMessage extends Model
         'response_state',
         'created_at',
     ];
-}
 
+    protected $casts = [
+        'created_at' => 'datetime',
+    ];
+
+    public function conversation(): BelongsTo
+    {
+        return $this->belongsTo(ChatConversation::class, 'conversation_id');
+    }
+
+    public function citations(): HasMany
+    {
+        return $this->hasMany(MessageCitation::class, 'chat_message_id');
+    }
+}

@@ -53,8 +53,10 @@ class DocumentSegmentRepository
             ->map(function (DocumentSegment $segment) use ($tenantId, $query): array {
                 return [
                     'documentId' => (string) $segment->document_id,
+                    'documentSegmentId' => (string) $segment->id,
                     'documentName' => $segment->document?->filename ?? 'Documento',
                     'snippet' => mb_substr($segment->content_text, 0, 240),
+                    'quoteText' => mb_substr($segment->content_text, 0, 240),
                     'score' => 0.9,
                     'sourceLabel' => $segment->source_label,
                     'tenantId' => $tenantId,

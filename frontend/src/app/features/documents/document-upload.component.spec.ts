@@ -53,6 +53,13 @@ describe('DocumentUploadComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Carica documento');
   });
 
+  it('renders a single explicit action to choose the file', () => {
+    const text = fixture.nativeElement.textContent as string;
+
+    expect(text).toContain('Scegli file');
+    expect(text).not.toContain('Sfoglia');
+  });
+
   it('shows a permission notice for viewers', () => {
     authService.role = 'viewer';
     fixture = TestBed.createComponent(DocumentUploadComponent);

@@ -29,14 +29,18 @@ class SemanticSearchService
         $results = $vectorMatches !== []
             ? array_map(fn (array $match): array => [
                 'documentId' => $match['payload']['document_id'],
+                'documentSegmentId' => $match['payload']['segment_id'] ?? null,
                 'documentName' => $match['payload']['filename'],
                 'snippet' => mb_substr($match['payload']['content_text'], 0, 240),
+                'quoteText' => mb_substr($match['payload']['content_text'], 0, 240),
                 'score' => round($match['score'], 4),
                 'sourceLabel' => $match['payload']['source_label'],
                 'tenantId' => $tenantId,
                 'query' => $query,
             ], $vectorMatches)
             : $this->segmentRepository->semanticSearch($tenantId, $query);
+
+        usort($results, static fn (array $left, array $right): int => ($right['score'] <=> $left['score']));
 
         $this->queryRepository->log($tenantId, $userId, $query, count($results));
 

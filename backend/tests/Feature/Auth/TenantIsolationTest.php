@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\Document;
+use App\Models\ChatConversation;
 use App\Models\Tenant;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
@@ -46,6 +47,29 @@ class TenantIsolationTest extends TestCase
 
         $this->withToken($viewerToken)
             ->getJson('/api/v1/documents/'.$foreignDocument->id)
+            ->assertStatus(404);
+    }
+
+    #[Test]
+    public function it_does_not_expose_chat_conversations_from_another_tenant(): void
+    {
+        $tenantB = Tenant::query()->where('slug', 'tenant-b')->firstOrFail();
+        $userB = User::query()->where('email', 'viewer-b@assistdoc.local')->firstOrFail();
+        $foreignConversation = ChatConversation::query()->create([
+            'tenant_id' => $tenantB->id,
+            'user_id' => $userB->id,
+            'title' => 'Chat tenant B',
+            'status' => 'active',
+            'last_message_at' => now(),
+        ]);
+
+        $viewerToken = (string) $this->postJson('/api/v1/auth/login', [
+            'email' => 'viewer@assistdoc.local',
+            'password' => 'password123',
+        ])->json('token');
+
+        $this->withToken($viewerToken)
+            ->getJson('/api/v1/chat/conversations/'.$foreignConversation->id)
             ->assertStatus(404);
     }
 }

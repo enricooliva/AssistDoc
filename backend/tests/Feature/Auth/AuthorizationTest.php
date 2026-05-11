@@ -50,4 +50,17 @@ class AuthorizationTest extends TestCase
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'ACCESS_DENIED');
     }
+
+    #[Test]
+    public function it_allows_a_viewer_to_access_chat_routes(): void
+    {
+        $token = (string) $this->postJson('/api/v1/auth/login', [
+            'email' => 'viewer@assistdoc.local',
+            'password' => 'password123',
+        ])->json('token');
+
+        $this->withToken($token)
+            ->getJson('/api/v1/chat/conversations')
+            ->assertOk();
+    }
 }
