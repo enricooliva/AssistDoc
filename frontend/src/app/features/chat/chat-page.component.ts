@@ -17,7 +17,8 @@ export class ChatPageComponent {
   readonly messages = this.chatApi.messages;
   readonly lastAssistantCitations = computed(() => {
     const assistantMessages = this.messages().filter((message) => message.actorType === 'assistant');
-    return assistantMessages.at(-1)?.citations ?? [];
+    const lastAssistantMessage = assistantMessages[assistantMessages.length - 1];
+    return lastAssistantMessage?.citations ?? [];
   });
 
   submit(): void {
@@ -30,4 +31,3 @@ export class ChatPageComponent {
     this.prompt.set('');
   }
 }
-

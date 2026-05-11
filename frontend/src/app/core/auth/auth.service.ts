@@ -1,6 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { apiUrl } from '../api/api-url';
 
 export interface SessionState {
   token: string;
@@ -56,7 +57,7 @@ export class AuthService {
 
     try {
       const response = await firstValueFrom(
-        this.http.get<CurrentUserResponse>('/api/v1/auth/me'),
+        this.http.get<CurrentUserResponse>(apiUrl('/api/v1/auth/me')),
       );
 
       this.persistSession({
@@ -79,7 +80,7 @@ export class AuthService {
 
     try {
       const response = await firstValueFrom(
-        this.http.post<AuthApiResponse>('/api/v1/auth/login', { email, password }),
+        this.http.post<AuthApiResponse>(apiUrl('/api/v1/auth/login'), { email, password }),
       );
 
       this.persistSession({
@@ -102,7 +103,7 @@ export class AuthService {
   async signOut(): Promise<void> {
     try {
       if (this.session()?.token) {
-        await firstValueFrom(this.http.post('/api/v1/auth/logout', {}));
+        await firstValueFrom(this.http.post(apiUrl('/api/v1/auth/logout'), {}));
       }
     } finally {
       this.clearSession();

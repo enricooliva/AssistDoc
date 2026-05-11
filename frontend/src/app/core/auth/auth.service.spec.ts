@@ -1,6 +1,7 @@
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { apiUrl } from '../api/api-url';
 import { authInterceptor } from '../http/auth.interceptor';
 import { AuthService } from './auth.service';
 
@@ -31,7 +32,7 @@ describe('AuthService', () => {
   it('stores the authenticated session after sign-in', async () => {
     const promise = service.signIn('viewer@assistdoc.local', 'password123');
 
-    const request = httpMock.expectOne('/api/v1/auth/login');
+    const request = httpMock.expectOne(apiUrl('/api/v1/auth/login'));
     expect(request.request.method).toBe('POST');
     request.flush({
       token: 'jwt-token',
@@ -59,7 +60,7 @@ describe('AuthService', () => {
 
   it('clears the stored session after logout', async () => {
     const loginPromise = service.signIn('viewer@assistdoc.local', 'password123');
-    httpMock.expectOne('/api/v1/auth/login').flush({
+    httpMock.expectOne(apiUrl('/api/v1/auth/login')).flush({
       token: 'jwt-token',
       token_type: 'Bearer',
       expires_in: 3600,
@@ -78,7 +79,7 @@ describe('AuthService', () => {
     await loginPromise;
 
     const promise = service.signOut();
-    const request = httpMock.expectOne('/api/v1/auth/logout');
+    const request = httpMock.expectOne(apiUrl('/api/v1/auth/logout'));
     expect(request.request.headers.get('Authorization')).toBe('Bearer jwt-token');
     request.flush({ message: 'Logout completed' });
 
@@ -120,7 +121,7 @@ describe('AuthService', () => {
     httpMock = TestBed.inject(HttpTestingController);
 
     const promise = service.restoreSession();
-    const request = httpMock.expectOne('/api/v1/auth/me');
+    const request = httpMock.expectOne(apiUrl('/api/v1/auth/me'));
     expect(request.request.headers.get('Authorization')).toBe('Bearer expired-token');
     request.flush(
       { error: { code: 'UNAUTHENTICATED', message: 'Autenticazione richiesta o non valida.' } },

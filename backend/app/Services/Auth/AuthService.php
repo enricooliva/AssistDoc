@@ -4,7 +4,7 @@ namespace App\Services\Auth;
 
 use App\Repositories\UserRepository;
 use App\Services\Audit\AuditService;
-use Illuminate\Support\CarbonImmutable;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 
