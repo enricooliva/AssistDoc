@@ -8,7 +8,7 @@ Verify that a tenant user can ask a question in chat, receive a tenant-grounded 
 
 - Backend dependencies installed and application configured.
 - Frontend dependencies installed and Angular app configured.
-- Qdrant available and seeded with tenant document vectors.
+- Qdrant available and seeded with tenant document vectors generated through `mxbai-embed-large` (1024 dimensions).
 - `llama3.2` available through the configured chat-completion backend.
 - Auth seed data available with at least one `operator` or `viewer` user and at least one tenant with searchable documents.
 
@@ -47,6 +47,8 @@ Verify that a tenant user can ask a question in chat, receive a tenant-grounded 
 
 1. Ask multiple follow-up questions in the same chat.
 2. Confirm the thread preserves message order and the latest cited answer appears in the citation panel.
+3. Confirm the conversation title updates from the first user question instead of staying on the default placeholder.
+4. Archive the conversation and confirm the thread remains visible but becomes read-only.
 
 ## Required Automated Tests Before Implementation Completion
 

@@ -98,6 +98,31 @@ class ConversationShowTest extends TestCase
             ->assertJsonPath('messages.1.citations.0.documentName', 'Manuale Sicurezza.pdf');
     }
 
+    #[Test]
+    public function it_allows_the_owner_to_archive_a_conversation(): void
+    {
+        $viewer = User::query()->where('email', 'viewer@assistdoc.local')->firstOrFail();
+        $conversation = ChatConversation::query()->create([
+            'tenant_id' => $viewer->tenant_id,
+            'user_id' => $viewer->id,
+            'title' => 'Da archiviare',
+            'status' => 'active',
+            'last_message_at' => now(),
+        ]);
+
+        $token = $this->login('viewer@assistdoc.local');
+
+        $this->withToken($token)
+            ->postJson('/api/v1/chat/conversations/'.$conversation->id.'/archive')
+            ->assertOk()
+            ->assertJsonPath('status', 'archived');
+
+        $this->assertDatabaseHas('chat_conversations', [
+            'id' => $conversation->id,
+            'status' => 'archived',
+        ]);
+    }
+
     private function login(string $email): string
     {
         return (string) $this->postJson('/api/v1/auth/login', [

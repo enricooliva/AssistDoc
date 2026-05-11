@@ -62,6 +62,28 @@ class ConversationListTest extends TestCase
             ->assertJsonPath('items.1.id', (string) $older->id);
     }
 
+    #[Test]
+    public function it_keeps_archived_conversations_visible_in_history(): void
+    {
+        $viewer = User::query()->where('email', 'viewer@assistdoc.local')->firstOrFail();
+
+        $archived = ChatConversation::query()->create([
+            'tenant_id' => $viewer->tenant_id,
+            'user_id' => $viewer->id,
+            'title' => 'Storico chat',
+            'status' => 'archived',
+            'last_message_at' => now(),
+        ]);
+
+        $token = $this->login('viewer@assistdoc.local');
+
+        $this->withToken($token)
+            ->getJson('/api/v1/chat/conversations')
+            ->assertOk()
+            ->assertJsonPath('items.0.id', (string) $archived->id)
+            ->assertJsonPath('items.0.status', 'archived');
+    }
+
     private function login(string $email): string
     {
         return (string) $this->postJson('/api/v1/auth/login', [

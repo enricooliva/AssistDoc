@@ -47,6 +47,10 @@ class SubmitChatMessageTest extends TestCase
             'tenant_id' => $viewer->tenant_id,
             'event_type' => 'chat.question_processed',
         ]);
+        $this->assertDatabaseHas('chat_conversations', [
+            'id' => $conversation->id,
+            'title' => 'Come funziona l\'isolamento tenant?',
+        ]);
     }
 
     #[Test]
@@ -110,14 +114,30 @@ class SubmitChatMessageTest extends TestCase
             ->assertJsonPath('assistantMessage.responseState', 'failed');
     }
 
-    private function prepareConversation(): array
+    #[Test]
+    public function it_rejects_new_messages_for_an_archived_conversation(): void
+    {
+        [$viewer, $conversation] = $this->prepareConversation(status: 'archived');
+        $this->prepareKnowledgeBase($viewer, 'AssistDoc applica isolamento tenant lato server e mostra citazioni verificabili.');
+
+        $token = $this->login('viewer@assistdoc.local');
+
+        $this->withToken($token)
+            ->postJson('/api/v1/chat/conversations/'.$conversation->id.'/messages', [
+                'question' => 'Posso continuare la chat?',
+            ])
+            ->assertStatus(409)
+            ->assertJsonPath('error.code', 'CONVERSATION_ARCHIVED');
+    }
+
+    private function prepareConversation(string $status = 'active'): array
     {
         $viewer = User::query()->where('email', 'viewer@assistdoc.local')->firstOrFail();
         $conversation = ChatConversation::query()->create([
             'tenant_id' => $viewer->tenant_id,
             'user_id' => $viewer->id,
-            'title' => 'Chat test',
-            'status' => 'active',
+            'title' => 'Nuova conversazione',
+            'status' => $status,
             'last_message_at' => now(),
         ]);
 

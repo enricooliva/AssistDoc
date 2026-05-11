@@ -39,6 +39,13 @@ export interface CreateConversationRequest {
   title?: string;
 }
 
+export interface ArchiveConversationResponse {
+  id: string;
+  title: string;
+  status: 'active' | 'archived';
+  lastMessageAt: string | null;
+}
+
 export interface SubmitChatQuestionRequest {
   question: string;
 }

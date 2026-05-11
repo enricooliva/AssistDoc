@@ -23,6 +23,7 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/chat/conversations', [ChatController::class, 'index'])->middleware('role:super-admin,operator,viewer');
         Route::post('/chat/conversations', [ChatController::class, 'store'])->middleware('role:super-admin,operator,viewer');
         Route::get('/chat/conversations/{conversationId}', [ChatController::class, 'show'])->middleware('role:super-admin,operator,viewer');
+        Route::post('/chat/conversations/{conversationId}/archive', [ChatController::class, 'archive'])->middleware('role:super-admin,operator,viewer');
         Route::post('/chat/conversations/{conversationId}/messages', [ChatController::class, 'message'])->middleware('role:super-admin,operator,viewer');
 
         Route::get('/audit-events', [AuditController::class, 'index'])->middleware('role:super-admin');

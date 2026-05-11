@@ -3,6 +3,7 @@
 namespace Tests\Unit\Documents;
 
 use App\Models\Document;
+use App\Services\AI\EmbeddingService;
 use App\Services\Documents\DocumentIndexerService;
 use App\Services\QdrantService;
 use PHPUnit\Framework\Attributes\Test;
@@ -39,6 +40,7 @@ class DocumentIndexerServiceTest extends TestCase
 
         $service = app(DocumentIndexerService::class);
         $qdrant = app(QdrantService::class);
+        $queryVector = app(EmbeddingService::class)->embed('AssistDoc rende il contenuto semanticamente ricercabile.');
         $service->indexSegments($document, [[
             'id' => 44,
             'segment_index' => 0,
@@ -46,7 +48,7 @@ class DocumentIndexerServiceTest extends TestCase
             'content_text' => 'AssistDoc rende il contenuto semanticamente ricercabile.',
         ]]);
 
-        $results = $qdrant->search('documents', [10, 1, 1], [
+        $results = $qdrant->search('documents', $queryVector, [
             'must' => [
                 ['key' => 'document_id', 'match' => ['value' => '11']],
             ],

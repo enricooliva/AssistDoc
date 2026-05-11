@@ -11,7 +11,8 @@
         [class.chat-layout__history-item--active]="conversation.id === activeConversationId()"
         (click)="openConversation(conversation.id)"
       >
-        {{ conversation.title }}
+        <span>{{ conversation.title }}</span>
+        <small *ngIf="conversation.status === 'archived'">Archiviata</small>
       </button>
     </div>
   </aside>
@@ -22,7 +23,18 @@
         <h2>{{ activeConversation()?.title ?? 'Nuova conversazione' }}</h2>
         <p>Le risposte vengono generate solo da evidenze del tenant e mostrano citazioni verificabili.</p>
       </div>
-      <span *ngIf="submitting()" class="chat-layout__status">Sto cercando nei documenti del tenant...</span>
+      <div class="chat-layout__header-actions">
+        <button
+          *ngIf="activeConversation() && !isArchivedConversation()"
+          type="button"
+          class="chat-layout__archive"
+          (click)="archiveConversation()"
+        >
+          Archivia
+        </button>
+        <span *ngIf="submitting()" class="chat-layout__status">Sto cercando nei documenti del tenant...</span>
+        <span *ngIf="isArchivedConversation()" class="chat-layout__status">Conversazione archiviata</span>
+      </div>
     </header>
 
     <p *ngIf="feedback()" class="chat-layout__feedback">{{ feedback() }}</p>
@@ -31,6 +43,9 @@
       <p *ngIf="loading()" class="chat-layout__empty">Caricamento conversazione in corso...</p>
       <p *ngIf="!loading() && !messages().length" class="chat-layout__empty">
         Nessun messaggio disponibile. Inizia con una domanda sui documenti del tenant.
+      </p>
+      <p *ngIf="!loading() && isArchivedConversation()" class="chat-layout__empty">
+        Questa conversazione è in sola lettura. Usa “Nuova chat” per ripartire.
       </p>
       <article
         *ngFor="let message of messages()"
@@ -60,9 +75,11 @@
         name="prompt"
         rows="3"
         placeholder="Fai una domanda sui documenti del tenant"
-        [disabled]="submitting()"
+        [disabled]="submitting() || isArchivedConversation()"
       ></textarea>
-      <button type="submit" [disabled]="submitting()">{{ submitting() ? 'Invio...' : 'Invia' }}</button>
+      <button type="submit" [disabled]="submitting() || isArchivedConversation()">
+        {{ submitting() ? 'Invio...' : 'Invia' }}
+      </button>
     </form>
   </section>
 

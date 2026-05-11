@@ -41,9 +41,12 @@ return [
     ],
 
     'ollama' => [
-        'url' => env('OLLAMA_URL', 'http://localhost:11434'),
-        'chat_model' => env('OLLAMA_CHAT_MODEL', 'llama3.1'),
-        'embedding_model' => env('OLLAMA_EMBEDDING_MODEL', 'nomic-embed-text'),
+        'url' => env('OLLAMA_URL', 'http://192.168.5.137:11434'),
+        'embedding_url' => env('OLLAMA_EMBEDDING_URL', 'http://192.168.5.137:11434/api/embeddings'),
+        'chat_model' => env('OLLAMA_CHAT_MODEL', 'llama3.2'),
+        'embedding_model' => env('OLLAMA_EMBEDDING_MODEL', 'mxbai-embed-large'),
+        'embedding_dimensions' => (int) env('OLLAMA_EMBEDDING_DIMENSIONS', 1024),
+        'embedding_max_input_chars' => (int) env('OLLAMA_EMBEDDING_MAX_INPUT_CHARS', 1800),
     ],
 
     'auth' => [

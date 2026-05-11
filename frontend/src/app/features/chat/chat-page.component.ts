@@ -19,6 +19,7 @@ export class ChatPageComponent implements OnInit {
   readonly messages = this.chatApi.messages;
   readonly activeConversation = this.chatApi.activeConversation;
   readonly activeConversationId = this.chatApi.activeConversationId;
+  readonly isArchivedConversation = this.chatApi.isArchivedConversation;
   readonly loading = this.chatApi.loading;
   readonly submitting = this.chatApi.submitting;
   readonly feedback = computed(() => this.inlineError() || this.chatApi.error());
@@ -42,10 +43,31 @@ export class ChatPageComponent implements OnInit {
     await this.chatApi.openConversation(conversationId);
   }
 
+  async archiveConversation(): Promise<void> {
+    const activeConversation = this.activeConversation();
+
+    if (!activeConversation) {
+      return;
+    }
+
+    this.inlineError.set('');
+
+    try {
+      await this.chatApi.archiveConversation(activeConversation.id);
+    } catch (error) {
+      this.inlineError.set(error instanceof Error ? error.message : 'Impossibile archiviare la conversazione.');
+    }
+  }
+
   async submit(): Promise<void> {
     const value = this.prompt().trim();
     if (!value) {
       this.inlineError.set('Inserisci una domanda prima di inviare il messaggio.');
+      return;
+    }
+
+    if (this.isArchivedConversation()) {
+      this.inlineError.set('La conversazione è archiviata. Aprine una nuova per continuare.');
       return;
     }
 

@@ -9,7 +9,7 @@ Verify that document upload uses the shared Formly file component, enforces Ital
 - Backend dependencies installed and application configured.
 - Frontend dependencies installed and Angular app configured.
 - Qdrant available for vector writes.
-- Embedding provider configured for the existing backend `EmbeddingService`.
+- Ollama embeddings reachable at `http://192.168.5.137:11434/api/embeddings` with model `mxbai-embed-large`.
 - Auth seed data available with at least one `operator` user and one `viewer` user.
 
 ## Local Run
@@ -18,6 +18,8 @@ Verify that document upload uses the shared Formly file component, enforces Ital
 2. Start the frontend application from `frontend/`.
 3. Ensure Qdrant is reachable from the backend environment.
 4. Ensure background job execution is active for document processing.
+5. Confirm the embedding endpoint returns 1024-dimensional vectors for `mxbai-embed-large`.
+6. Confirm overlong chunks are truncated before embedding so the model does not reject them for context-length overflow.
 
 ## Manual Verification Flow
 

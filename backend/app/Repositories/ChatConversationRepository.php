@@ -46,6 +46,13 @@ class ChatConversationRepository
             ->first();
     }
 
+    public function save(ChatConversation $conversation): ChatConversation
+    {
+        $conversation->save();
+
+        return $conversation->refresh();
+    }
+
     public function getThreadForUser(string $tenantId, string $userId, string $conversationId): ?ChatConversation
     {
         return ChatConversation::query()

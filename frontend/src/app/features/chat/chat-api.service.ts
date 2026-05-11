@@ -3,6 +3,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { apiUrl } from '../../core/api/api-url';
 import {
+  ArchiveConversationResponse,
   ChatExchangeResponse,
   ChatMessage,
   ConversationDetailResponse,
@@ -30,6 +31,7 @@ export class ChatApiService {
   readonly activeConversation = computed(
     () => this.conversations().find((conversation) => conversation.id === this.activeConversationId()) ?? null,
   );
+  readonly isArchivedConversation = computed(() => this.activeConversation()?.status === 'archived');
 
   async initialize(): Promise<void> {
     await this.loadConversations();
@@ -125,12 +127,17 @@ export class ChatApiService {
       );
 
       this.messages.update((current) => [...current, response.userMessage, response.assistantMessage]);
+      const currentConversation = this.activeConversation();
       this.upsertConversation({
         ...(this.activeConversation() ?? {
           id: response.conversationId,
           title: 'Nuova conversazione',
           status: 'active',
         }),
+        title:
+          currentConversation && currentConversation.title !== 'Nuova conversazione'
+            ? currentConversation.title
+            : this.generateTitleFromQuestion(question),
         lastMessageAt: response.assistantMessage.createdAt,
       });
     } catch (error) {
@@ -142,11 +149,37 @@ export class ChatApiService {
     }
   }
 
+  async archiveConversation(conversationId: string): Promise<void> {
+    this.error.set('');
+
+    try {
+      const archived = await firstValueFrom(
+        this.http.post<ArchiveConversationResponse>(apiUrl(`/api/v1/chat/conversations/${conversationId}/archive`), {}),
+      );
+
+      this.upsertConversation(archived);
+    } catch (error) {
+      const message = this.extractError(error, 'Impossibile archiviare la conversazione.');
+      this.error.set(message);
+      throw new Error(message);
+    }
+  }
+
   private upsertConversation(conversation: ConversationSummary): void {
     const items = this.conversations().filter((item) => item.id !== conversation.id);
     items.unshift(conversation);
     items.sort((left, right) => (right.lastMessageAt ?? '').localeCompare(left.lastMessageAt ?? ''));
     this.conversations.set(items);
+  }
+
+  private generateTitleFromQuestion(question: string): string {
+    const normalized = question.trim().replace(/\s+/g, ' ');
+
+    if (normalized.length <= 72) {
+      return normalized;
+    }
+
+    return `${normalized.slice(0, 69).trim()}...`;
   }
 
   private extractError(error: unknown, fallback: string): string {

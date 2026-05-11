@@ -18,8 +18,7 @@ bootstrapApplication(AppComponent, {
         types: [
           {
             name: 'document-file',
-            component: InputFileComponent,
-            wrappers: ['form-field'],
+            component: InputFileComponent,           
           },
         ],
       },

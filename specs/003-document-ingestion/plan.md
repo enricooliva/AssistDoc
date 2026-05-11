@@ -10,7 +10,7 @@ Deliver the document-ingestion slice by replacing the placeholder upload UI with
 ## Technical Context
 
 **Language/Version**: PHP 8.3 (Laravel 12), TypeScript 5.x (Angular 20), YAML for API contracts  
-**Primary Dependencies**: Laravel API stack, Angular SPA, Bootstrap Italia styling on top of Bootstrap, ngx-formly, JWT authentication, Laravel queue workers, Qdrant vector search, existing `EmbeddingService`, existing `AttachmentIndexerService` chunking pattern, an internal PDF text extractor for uploaded binary streams  
+**Primary Dependencies**: Laravel API stack, Angular SPA, Bootstrap Italia styling on top of Bootstrap, ngx-formly, JWT authentication, Laravel queue workers, Qdrant vector search, existing `EmbeddingService` configured for Ollama `mxbai-embed-large` (1024 dimensions) at `http://192.168.5.137:11434/api/embeddings` with shared input truncation before embedding, existing `AttachmentIndexerService` chunking pattern, an internal PDF text extractor for uploaded binary streams  
 **Storage**: Relational database for `documents` and `document_segments`, private file storage for uploaded source files, Qdrant for semantic retrieval vectors  
 **Testing**: PHPUnit feature and unit tests, Angular component tests, Playwright end-to-end tests, OpenAPI contract review  
 **Target Platform**: Linux-hosted web application with Angular frontend and Laravel API backend  
@@ -109,7 +109,7 @@ frontend/
 - `research.md` records the decisions on Formly reuse, Bootstrap Italia alignment, multipart upload contract, indexing boundaries, chunk strategy, and consistency rules between database records and Qdrant vectors.
 - `data-model.md` defines the document, ingestion job semantics, and segment entities, including validations, state transitions, and source-to-chunk traceability.
 - `contracts/document-ingestion-openapi.yaml` captures the document upload, list, detail, retry, and replacement-ready workflow contracts with auth, validation, and error rules.
-- `quickstart.md` defines local verification steps for uploading a document through the Formly UI, observing queued and ready states, and confirming relational segment plus Qdrant indexing outputs.
+- `quickstart.md` defines local verification steps for uploading a document through the Formly UI, observing queued and ready states, and confirming relational segment plus Qdrant indexing outputs backed by `mxbai-embed-large` vectors.
 - Agent context will be refreshed after these design files are written.
 
 ## Phase 2 Preview

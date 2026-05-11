@@ -135,6 +135,12 @@
 - [X] T044 [P] Sync implementation-driven naming and state semantics in `specs/004-chat-semantic-answer/plan.md` and `specs/004-chat-semantic-answer/data-model.md`
 - [X] T045 [P] Add cross-cutting regression coverage for chat authorization, citation visibility, and fallback invariants in `backend/tests/Feature/Auth/AuthorizationTest.php`, `backend/tests/Feature/Auth/TenantIsolationTest.php`, and `frontend/tests/e2e/chat-mvp.spec.ts`
 - [X] T046 Verify Italian chat copy, loading states, and citation UX consistency in `frontend/src/app/features/chat/chat-page.component.ts`, `frontend/src/app/features/chat/chat-page.component.html`, and `frontend/src/app/features/chat/citation-panel.component.ts`
+- [X] T047 [P] Add archive-route and auto-title regression coverage in `backend/tests/Feature/Chat/ConversationListTest.php`, `backend/tests/Feature/Chat/ConversationShowTest.php`, and `backend/tests/Feature/Chat/SubmitChatMessageTest.php`
+- [X] T048 [P] Implement first-question title generation and conversation archive workflow in `backend/app/Services/Chat/ChatService.php`, `backend/app/Repositories/ChatConversationRepository.php`, `backend/app/Http/Controllers/Api/V1/ChatController.php`, and `backend/routes/api.php`
+- [X] T049 [P] Implement archive-aware frontend chat state and controls in `frontend/src/app/features/chat/chat-api.service.ts`, `frontend/src/app/features/chat/chat.models.ts`, and `frontend/src/app/features/chat/chat-page.component.ts`
+- [X] T050 Update chat layout actions so `Nuova chat` and `Invia` occupy the available width in `frontend/src/app/features/chat/chat-page.component.html` and `frontend/src/app/features/chat/chat-page.component.scss`
+- [X] T051 [P] Reconfigure the shared embedding integration to use Ollama `mxbai-embed-large` (1024 dimensions) via `http://192.168.5.137:11434/api/embeddings` in `backend/app/Services/AI/EmbeddingService.php`, `backend/config/services.php`, and `backend/.env.example`
+- [X] T052 Add shared input-length guarding for Ollama embeddings in `backend/app/Services/AI/EmbeddingService.php`, `backend/config/services.php`, and `backend/tests/Unit/AI/EmbeddingServiceTest.php`
 
 ---
 

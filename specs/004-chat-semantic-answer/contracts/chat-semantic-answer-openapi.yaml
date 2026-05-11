@@ -79,6 +79,26 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /chat/conversations/{conversationId}/archive:
+    post:
+      tags: [Chat]
+      summary: Archive a tenant chat conversation
+      x-roles: [super-admin, operator, viewer]
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      responses:
+        '200':
+          description: Conversation archived
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /chat/conversations/{conversationId}/messages:
     post:
       tags: [Chat]
@@ -150,6 +170,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '422':
           $ref: '#/components/responses/ValidationError'
 components:
@@ -215,6 +237,12 @@ components:
                           type: array
                           items:
                             type: string
+    Conflict:
+      description: Resource exists but cannot accept the requested state transition
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
   schemas:
     ErrorResponse:
       type: object
@@ -236,6 +264,7 @@ components:
           type: string
         title:
           type: string
+          description: Generated automatically from the first user question while the conversation still has the default placeholder title.
         status:
           type: string
           enum: [active, archived]

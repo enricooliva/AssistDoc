@@ -58,12 +58,44 @@ class ChatService
         ];
     }
 
+    public function archiveConversation(string $tenantId, string $userId, string $conversationId): ?array
+    {
+        $conversation = $this->conversationRepository->findForUser($tenantId, $userId, $conversationId);
+
+        if (! $conversation) {
+            return null;
+        }
+
+        $conversation->status = 'archived';
+        $conversation = $this->conversationRepository->save($conversation);
+
+        $this->auditService->record('chat.conversation_archived', $tenantId, $userId, [
+            'conversation_id' => $conversationId,
+        ], 'success', 'chat_conversation', $conversationId);
+
+        return ChatConversationData::fromModel($conversation)->toArray();
+    }
+
     public function answerQuestion(string $tenantId, string $userId, string $conversationId, string $question): ?array
     {
         $conversation = $this->conversationRepository->findForUser($tenantId, $userId, $conversationId);
 
         if (! $conversation) {
             return null;
+        }
+
+        if ($conversation->status === 'archived') {
+            return [
+                'error' => [
+                    'code' => 'CONVERSATION_ARCHIVED',
+                    'message' => 'La conversazione è archiviata e non può ricevere nuovi messaggi.',
+                ],
+            ];
+        }
+
+        if ($this->shouldGenerateTitle($conversation)) {
+            $conversation->title = $this->generateTitleFromQuestion($question);
+            $conversation = $this->conversationRepository->save($conversation);
         }
 
         $userMessage = $this->conversationRepository->createMessage($conversation, 'user', $question);
@@ -130,5 +162,21 @@ class ChatService
         $topSnippet = trim((string) ($results[0]['quoteText'] ?? $results[0]['snippet'] ?? ''));
 
         return $topScore >= 0.35 && $topSnippet !== '';
+    }
+
+    private function shouldGenerateTitle(\App\Models\ChatConversation $conversation): bool
+    {
+        return trim((string) $conversation->title) === '' || $conversation->title === 'Nuova conversazione';
+    }
+
+    private function generateTitleFromQuestion(string $question): string
+    {
+        $normalized = trim(preg_replace('/\s+/', ' ', $question) ?? $question);
+
+        if (mb_strlen($normalized) <= 72) {
+            return $normalized;
+        }
+
+        return rtrim(mb_substr($normalized, 0, 69)).'...';
     }
 }

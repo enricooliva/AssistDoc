@@ -25,6 +25,7 @@
 
 - Conversations begin as active.
 - Conversations remain active while the user continues asking questions.
+- Conversations may be archived by the owner; archived threads remain readable but no longer accept new messages.
 - Archiving is optional for later housekeeping and does not alter tenant isolation.
 
 ## Chat Message
@@ -99,7 +100,7 @@
 ### Create Conversation
 
 - Conversation title is optional.
-- If omitted, a default title may be generated for the first release.
+- If omitted, the first user question generates the persisted title automatically from the question text.
 
 ### Read History
 

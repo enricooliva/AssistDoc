@@ -5,7 +5,7 @@
 
 ## Summary
 
-Deliver a tenant-scoped chat flow where an authenticated user submits a question, the backend retrieves the most relevant tenant knowledge from Qdrant, the answer is elaborated through `llama3.2`, and the final response includes visible source references or an explicit insufficient-information outcome. The implementation will reuse the existing `ChatController -> ChatService -> SemanticSearchService -> ChatCompletionService` path, preserve tenant isolation, and keep all user-facing text in Italian.
+Deliver a tenant-scoped chat flow where an authenticated user submits a question, the backend retrieves the most relevant tenant knowledge from Qdrant, the answer is elaborated through `llama3.2`, and the final response includes visible source references or an explicit insufficient-information outcome. The implementation will reuse the existing `ChatController -> ChatService -> SemanticSearchService -> ChatCompletionService` path, preserve tenant isolation, keep all user-facing text in Italian, generate titles from the first question, and allow archiving completed conversations.
 
 ## Technical Context
 
@@ -95,6 +95,7 @@ specs/004-chat-semantic-answer/contracts/
 - Treat Qdrant as the retrieval layer and the relational chat tables as the source of truth for conversation history, messages, and citations.
 - Preserve explicit insufficient-information handling when retrieval returns too little support, because the feature must avoid unsupported answers.
 - Keep the frontend chat shell and citation panel, but wire them to real conversation and message data instead of hard-coded demo content.
+- Generate conversation titles automatically from the first submitted question and let users archive completed conversations without deleting tenant history.
 
 ## Phase 1: Design Outputs
 

@@ -30,7 +30,9 @@ class ChatApiServiceStub {
   readonly initialize = jasmine.createSpy('initialize').and.resolveTo();
   readonly createConversation = jasmine.createSpy('createConversation').and.resolveTo();
   readonly openConversation = jasmine.createSpy('openConversation').and.resolveTo();
+  readonly archiveConversation = jasmine.createSpy('archiveConversation').and.resolveTo();
   readonly send = jasmine.createSpy('send').and.resolveTo();
+  readonly isArchivedConversation = signal(false);
 }
 
 describe('ChatPageComponent', () => {
@@ -71,5 +73,11 @@ describe('ChatPageComponent', () => {
 
     expect(chatApi.send).not.toHaveBeenCalled();
     expect(component.feedback()).toContain('Inserisci una domanda');
+  });
+
+  it('archives the active conversation from the header action', async () => {
+    await component.archiveConversation();
+
+    expect(chatApi.archiveConversation).toHaveBeenCalledWith('conv-1');
   });
 });

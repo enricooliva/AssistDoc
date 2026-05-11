@@ -12,6 +12,7 @@ import { FieldType, FieldTypeConfig, FormlyModule } from '@ngx-formly/core';
       <input
         #fileInput
         type="file"
+        hidden="true"
         class="visually-hidden"
         [attr.accept]="props.accept || null"
         (change)="onFileChanged($event)"
