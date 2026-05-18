@@ -65,7 +65,13 @@ class DocumentSegmentRepository
             ]);
     }
 
-    public function semanticSearch(string $tenantId, string $query, ?string $profileId = null): array
+    public function semanticSearch(
+        string $tenantId,
+        string $query,
+        ?string $profileId = null,
+        array $tags = [],
+        ?string $chunkingProfileId = null,
+    ): array
     {
         $builder = DocumentSegment::query()
             ->with('document')
@@ -79,6 +85,20 @@ class DocumentSegmentRepository
 
         if ($profileId !== null) {
             $builder->where('retrieval_model_profile_id', $profileId);
+        }
+
+        if ($chunkingProfileId !== null && $chunkingProfileId !== '') {
+            $builder->where('chunking_profile_id', $chunkingProfileId);
+        }
+
+        if ($tags !== []) {
+            $builder->whereHas('document', function ($query) use ($tags): void {
+                $query->where(function ($query) use ($tags): void {
+                    foreach ($tags as $tag) {
+                        $query->orWhereJsonContains('tags', $tag);
+                    }
+                });
+            });
         }
 
         return $builder

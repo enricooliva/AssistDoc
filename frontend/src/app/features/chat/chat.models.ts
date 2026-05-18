@@ -48,10 +48,17 @@ export interface ArchiveConversationResponse {
 
 export interface SubmitChatQuestionRequest {
   question: string;
+  tags?: string[];
+  chunkingProfileId?: string | null;
 }
 
 export interface ChatExchangeResponse {
   conversationId: string;
   userMessage: ChatMessage;
   assistantMessage: ChatMessage;
+}
+
+export interface ChatSearchFilters {
+  tags: string[];
+  chunkingProfileId: string | null;
 }

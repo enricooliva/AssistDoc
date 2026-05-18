@@ -3,6 +3,7 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ChatApiService } from './chat-api.service';
 import { CitationPanelComponent } from './citation-panel.component';
+import { DocumentApiService } from '../documents/document-api.service';
 
 @Component({
   selector: 'app-chat-page',
@@ -13,6 +14,7 @@ import { CitationPanelComponent } from './citation-panel.component';
 })
 export class ChatPageComponent implements OnInit {
   readonly chatApi = inject(ChatApiService);
+  readonly documentApi = inject(DocumentApiService);
   readonly prompt = signal('');
   readonly inlineError = signal('');
   readonly conversations = this.chatApi.conversations;
@@ -22,7 +24,22 @@ export class ChatPageComponent implements OnInit {
   readonly isArchivedConversation = this.chatApi.isArchivedConversation;
   readonly loading = this.chatApi.loading;
   readonly submitting = this.chatApi.submitting;
+  readonly selectedTags = signal<string[]>([]);
+  readonly selectedChunkingProfileId = signal<string | null>(null);
+  readonly tagsPanelOpen = signal(false);
   readonly feedback = computed(() => this.inlineError() || this.chatApi.error());
+  readonly availableTags = computed(() => {
+    const unique = new Map<string, string>();
+
+    this.documentApi.documents().forEach((document) => {
+      document.tags.forEach((tag) => unique.set(tag.toLowerCase(), tag));
+    });
+
+    return Array.from(unique.values()).sort((left, right) => left.localeCompare(right));
+  });
+  readonly availableChunkingProfiles = computed(() =>
+    this.documentApi.chunkingProfiles().filter((profile) => profile.active),
+  );
   readonly lastAssistantCitations = computed(() => {
     const assistantMessages = this.messages().filter((message) => message.actorType === 'assistant');
     const lastAssistantMessage = assistantMessages[assistantMessages.length - 1];
@@ -30,7 +47,11 @@ export class ChatPageComponent implements OnInit {
   });
 
   async ngOnInit(): Promise<void> {
-    await this.chatApi.initialize();
+    await Promise.all([
+      this.chatApi.initialize(),
+      this.documentApi.loadDocuments(),
+      this.documentApi.loadChunkingProfiles(),
+    ]);
   }
 
   async startConversation(): Promise<void> {
@@ -74,10 +95,39 @@ export class ChatPageComponent implements OnInit {
     this.inlineError.set('');
 
     try {
-      await this.chatApi.send(value);
+      await this.chatApi.send(value, {
+        tags: this.selectedTags(),
+        chunkingProfileId: this.selectedChunkingProfileId(),
+      });
       this.prompt.set('');
     } catch (error) {
       this.inlineError.set(error instanceof Error ? error.message : 'Invio della domanda non riuscito.');
     }
+  }
+
+  toggleTag(tag: string): void {
+    this.selectedTags.update((current) =>
+      current.includes(tag)
+        ? current.filter((item) => item !== tag)
+        : [...current, tag],
+    );
+  }
+
+  setTagSelected(tag: string, selected: boolean): void {
+    const isSelected = this.isTagSelected(tag);
+
+    if (selected === isSelected) {
+      return;
+    }
+
+    this.toggleTag(tag);
+  }
+
+  isTagSelected(tag: string): boolean {
+    return this.selectedTags().includes(tag);
+  }
+
+  toggleTagsPanel(): void {
+    this.tagsPanelOpen.update((current) => !current);
   }
 }

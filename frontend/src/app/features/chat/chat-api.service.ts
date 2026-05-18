@@ -6,6 +6,7 @@ import {
   ArchiveConversationResponse,
   ChatExchangeResponse,
   ChatMessage,
+  ChatSearchFilters,
   ConversationDetailResponse,
   ConversationListResponse,
   ConversationSummary,
@@ -107,7 +108,7 @@ export class ChatApiService {
     }
   }
 
-  async send(question: string): Promise<void> {
+  async send(question: string, filters: ChatSearchFilters): Promise<void> {
     this.submitting.set(true);
     this.error.set('');
 
@@ -122,7 +123,11 @@ export class ChatApiService {
       const response = await firstValueFrom(
         this.http.post<ChatExchangeResponse>(
           apiUrl(`/api/v1/chat/conversations/${conversationId}/messages`),
-          { question } satisfies SubmitChatQuestionRequest,
+          {
+            question,
+            tags: filters.tags,
+            chunkingProfileId: filters.chunkingProfileId,
+          } satisfies SubmitChatQuestionRequest,
         ),
       );
 

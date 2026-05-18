@@ -19,18 +19,35 @@ class SemanticSearchService
     ) {
     }
 
-    public function query(string $tenantId, string $userId, string $query, ?string $profileId = null): array
+    public function query(
+        string $tenantId,
+        string $userId,
+        string $query,
+        ?string $profileId = null,
+        array $tags = [],
+        ?string $chunkingProfileId = null,
+    ): array
     {
         $profile = $this->retrievalModelProfileService->resolve($profileId);
+        $rules = [
+            ['field' => 'tenant_id', 'operator' => '=', 'value' => $tenantId],
+            ['field' => 'document_status', 'operator' => '=', 'value' => 'ready'],
+            ['field' => 'retrieval_model_profile_id', 'operator' => '=', 'value' => (string) $profile->id],
+        ];
+
+        if ($chunkingProfileId !== null && $chunkingProfileId !== '') {
+            $rules[] = ['field' => 'chunking_profile_id', 'operator' => '=', 'value' => $chunkingProfileId];
+        }
+
+        if ($tags !== []) {
+            $rules[] = ['field' => 'tags', 'operator' => 'in', 'value' => $tags];
+        }
+
         $vectorMatches = $this->normalizeVectorMatches($this->qdrantService->search(
             $this->embeddingService->embed($query, $profile),
             5,
             null,
-            [
-                ['field' => 'tenant_id', 'operator' => '=', 'value' => $tenantId],
-                ['field' => 'document_status', 'operator' => '=', 'value' => 'ready'],
-                ['field' => 'retrieval_model_profile_id', 'operator' => '=', 'value' => (string) $profile->id],
-            ],
+            $rules,
             null,
             $this->embeddingService->getEmbeddingDimensions($profile)
         ));
@@ -47,7 +64,8 @@ class SemanticSearchService
                 'retrievalModelProfileId' => $match['payload']['retrieval_model_profile_id'] ?? null,
                 'tenantId' => $tenantId,
                 'query' => $query, 
-            ], $vectorMatches): [];             //$this->segmentRepository->semanticSearch($tenantId, $query, (string) $profile->id);
+            ], $vectorMatches)
+            : $this->segmentRepository->semanticSearch($tenantId, $query, (string) $profile->id, $tags, $chunkingProfileId);
 
         usort($results, static fn (array $left, array $right): int => ($right['score'] <=> $left['score']));
 

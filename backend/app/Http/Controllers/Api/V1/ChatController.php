@@ -65,6 +65,9 @@ class ChatController extends Controller
             $user['id'],
             $conversationId,
             $request->validated('question'),
+            null,
+            $request->validated('tags', []),
+            $request->validated('chunkingProfileId'),
         );
 
         if ($exchange === null) {

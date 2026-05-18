@@ -82,6 +82,8 @@ class ChatService
         string $conversationId,
         string $question,
         ?string $retrievalModelProfileId = null,
+        array $tags = [],
+        ?string $chunkingProfileId = null,
     ): ?array
     {
         $conversation = $this->conversationRepository->findForUser($tenantId, $userId, $conversationId);
@@ -105,7 +107,14 @@ class ChatService
         }
 
         $userMessage = $this->conversationRepository->createMessage($conversation, 'user', $question);
-        $search = $this->searchService->query($tenantId, $userId, $question, $retrievalModelProfileId);
+        $search = $this->searchService->query(
+            $tenantId,
+            $userId,
+            $question,
+            $retrievalModelProfileId,
+            $tags,
+            $chunkingProfileId,
+        );
         $supportingResults = $search['results'];
 
         if (! $this->hasSufficientSupport($supportingResults)) {
@@ -155,6 +164,8 @@ class ChatService
         $this->auditService->record('chat.question_processed', $tenantId, $userId, [
             'conversation_id' => $conversationId,
             'question' => $question,
+            'tags' => $tags,
+            'chunking_profile_id' => $chunkingProfileId,
             'response_state' => $assistantPayload['responseState'],
             'supporting_references_returned' => $citations !== [],
             'result_count' => count($supportingResults),
