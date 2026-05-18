@@ -35,12 +35,17 @@ class DocumentUploadTest extends TestCase
         );
 
         $response = $this->withToken($token)
-            ->post('/api/v1/documents', ['file' => $file], ['Accept' => 'application/json']);
+            ->post('/api/v1/documents', [
+                'file' => $file,
+                'tags' => ['manuale', 'tenant', 'manuale'],
+            ], ['Accept' => 'application/json']);
 
         $response->assertCreated()
             ->assertJsonPath('filename', 'manuale.txt')
             ->assertJsonPath('status', 'ready')
-            ->assertJsonPath('activeChunkingProfile.name', 'Large');
+            ->assertJsonPath('activeChunkingProfile.name', 'Large')
+            ->assertJsonPath('tags.0', 'manuale')
+            ->assertJsonPath('tags.1', 'tenant');
 
         $documentId = (string) $response->json('id');
 
@@ -62,6 +67,23 @@ class DocumentUploadTest extends TestCase
 
         $this->withToken($token)
             ->post('/api/v1/documents', [], ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'VALIDATION_FAILED');
+    }
+
+    #[Test]
+    public function upload_validates_each_tag_as_a_short_string(): void
+    {
+        $token = (string) $this->postJson('/api/v1/auth/login', [
+            'email' => 'operator@assistdoc.local',
+            'password' => 'password123',
+        ])->json('token');
+
+        $this->withToken($token)
+            ->post('/api/v1/documents', [
+                'file' => UploadedFile::fake()->createWithContent('manuale.txt', 'contenuto'),
+                'tags' => [str_repeat('a', 51)],
+            ], ['Accept' => 'application/json'])
             ->assertStatus(422)
             ->assertJsonPath('error.code', 'VALIDATION_FAILED');
     }

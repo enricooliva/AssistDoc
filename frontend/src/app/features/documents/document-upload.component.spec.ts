@@ -20,6 +20,7 @@ class DocumentApiServiceStub {
   uploadDocument = jasmine.createSpy('uploadDocument').and.resolveTo({
     id: 'doc-1',
     filename: 'manuale.txt',
+    tags: [],
   });
 }
 
@@ -51,6 +52,10 @@ describe('DocumentUploadComponent', () => {
 
   it('shows the upload heading for privileged users', () => {
     expect(fixture.nativeElement.textContent).toContain('Carica documento');
+  });
+
+  it('shows the tags field for privileged users', () => {
+    expect(fixture.nativeElement.textContent).toContain('Tag');
   });
 
   it('renders a single explicit action to choose the file', () => {

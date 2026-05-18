@@ -122,8 +122,9 @@ export class DocumentUploadComponent {
   readonly form = new FormGroup({});
   readonly submitting = signal(false);
   readonly feedback = signal('');
-  readonly model = signal<{ file: File | null }>({ file: null });
+  readonly model = signal<{ file: string | null; tags: string }>({ file: null, tags: '' });
   readonly canUpload = computed(() => this.authService.hasAnyRole(['super-admin', 'operator']));
+  private selectedFile: File | null = null;
 
   readonly fields: FormlyFieldConfig[] = [
     {
@@ -135,23 +136,35 @@ export class DocumentUploadComponent {
         description: 'Formati supportati: TXT, Markdown, PDF. Dimensione massima: 5 MB.',
         required: true,
         accept: '.txt,.md,.pdf,text/plain,text/markdown,application/pdf',
-        onSelected: (selFile, field) => { this.submit(selFile, field); }
+        onSelected: (selFile: File | null) => {
+          this.selectedFile = selFile;
+          this.feedback.set('');
+        },
+      },
+    },
+    {
+      key: 'tags',
+      type: 'input',
+      props: {
+        label: 'Tag',
+        placeholder: 'es. capitolato, 2026, privacy',
+        description: 'Inserisci tag separati da virgola. Saranno salvati sul documento e inviati anche nel payload Qdrant.',
       },
     },
   ];
 
-  async submit(selectedFile, field): Promise<void> {
+  async submit(): Promise<void> {
     this.feedback.set('');
     this.form.markAllAsTouched();
     
-    if (!selectedFile) {
+    if (!this.selectedFile) {
       this.feedback.set('Seleziona un documento prima di procedere.');
       return;
     }
 
     this.submitting.set(true);
     try {
-      const document = await this.api.uploadDocument(selectedFile);
+      const document = await this.api.uploadDocument(this.selectedFile, this.parseTags(this.model().tags));
       this.feedback.set(`Documento "${document.filename}" caricato correttamente.`);
       this.reset();
     } catch (error) {
@@ -163,6 +176,18 @@ export class DocumentUploadComponent {
 
   reset(): void {
     this.form.reset();
-    this.model.set({ file: null });
+    this.selectedFile = null;
+    this.model.set({ file: null, tags: '' });
+  }
+
+  private parseTags(raw: string): string[] {
+    const unique = new Map<string, string>();
+
+    raw.split(',')
+      .map((tag) => tag.trim())
+      .filter((tag) => tag !== '')
+      .forEach((tag) => unique.set(tag.toLowerCase(), tag));
+
+    return Array.from(unique.values());
   }
 }

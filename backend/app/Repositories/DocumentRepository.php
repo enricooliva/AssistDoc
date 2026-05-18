@@ -60,6 +60,7 @@ class DocumentRepository
             'filename' => $document->filename,
             'mediaType' => $document->media_type,
             'sizeBytes' => $document->size_bytes,
+            'tags' => $document->tags ?? [],
             'status' => $document->status,
             'uploadedAt' => $document->uploaded_at?->toIso8601String(),
             'lastStatusAt' => $document->last_status_at?->toIso8601String(),

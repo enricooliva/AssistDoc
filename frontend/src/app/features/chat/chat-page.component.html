@@ -77,7 +77,7 @@
         placeholder="Fai una domanda sui documenti del tenant"
         [disabled]="submitting() || isArchivedConversation()"
       ></textarea>
-      <button type="submit" [disabled]="submitting() || isArchivedConversation()">
+      <button type="submit" class="chat-layout__submit" [disabled]="submitting() || isArchivedConversation()">
         {{ submitting() ? 'Invio...' : 'Invia' }}
       </button>
     </form>

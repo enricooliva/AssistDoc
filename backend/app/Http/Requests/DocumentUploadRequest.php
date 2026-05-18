@@ -16,6 +16,8 @@ class DocumentUploadRequest extends FormRequest
         return [
             'file' => ['required', 'file', 'mimetypes:text/plain,text/markdown,application/pdf', 'max:5120'],
             'sourceLabel' => ['nullable', 'string', 'max:255'],
+            'tags' => ['nullable', 'array', 'max:20'],
+            'tags.*' => ['string', 'max:50'],
         ];
     }
 }

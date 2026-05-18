@@ -31,6 +31,7 @@ class DocumentService
     {
         /** @var UploadedFile $file */
         $file = $payload['file'];
+        $tags = $this->normalizeTags($payload['tags'] ?? []);
         $storagePath = $file->storeAs(
             sprintf('documents/%s', $tenantId),
             sprintf('%s-%s', now()->timestamp, $file->getClientOriginalName()),
@@ -42,6 +43,7 @@ class DocumentService
             'filename' => $file->getClientOriginalName(),
             'media_type' => $file->getMimeType() ?: 'application/octet-stream',
             'storage_path' => $storagePath,
+            'tags' => $tags,
             'size_bytes' => $file->getSize(),
             'status' => 'queued',
             'uploaded_at' => now(),
@@ -54,6 +56,7 @@ class DocumentService
             'document_id' => (string) $document->id,
             'filename' => $document->filename,
             'storage_path' => $document->storage_path,
+            'tags' => $tags,
         ]);
 
         app(DocumentProcessingService::class)->processWithDefaultProfiles(
@@ -140,5 +143,23 @@ class DocumentService
             $chunkingProfileId,
             $userId,
         );
+    }
+
+    private function normalizeTags(array $tags): array
+    {
+        $normalized = [];
+
+        foreach ($tags as $tag) {
+            $value = trim((string) $tag);
+
+            if ($value === '') {
+                continue;
+            }
+
+            $key = mb_strtolower($value);
+            $normalized[$key] = $value;
+        }
+
+        return array_values($normalized);
     }
 }

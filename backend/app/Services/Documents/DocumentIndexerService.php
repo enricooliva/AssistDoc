@@ -110,14 +110,20 @@ class DocumentIndexerService
                         'document_id' => (string) $document->id,
                         'segment_id' => $segmentId ? (string) $segmentId : null,
                         'segment_index' => (int) $segmentIndex,
-                        'chunk_preparation_run_id' => $segment instanceof DocumentSegment ? ($segment->chunk_preparation_run_id ? (string) $segment->chunk_preparation_run_id : null) : (($segment['chunk_preparation_run_id'] ?? null) ? (string) $segment['chunk_preparation_run_id'] : null),
+
+                        'chunk_preparation_run_id' => $segment instanceof DocumentSegment ? ($segment->chunk_preparation_run_id ? (string) $segment->chunk_preparation_run_id : null) : (($segment['chunk_preparation_run_id'] ?? null) ? (string) $segment['chunk_preparation_run_id'] : null),                        
+                        
+                        'chunk_profile' => $segment instanceof DocumentSegment ? $segment->chunkingProfile->slug : '',
+                        'chunking_profile_id' => $chunkingProfileId !== 'default' ? $chunkingProfileId : null,
+
                         'filename' => $document->filename,
+                        'tags' => $document->tags ?? [],
                         'source_label' => $sourceLabel,
                         'content_text' => $content,
                         'embedding_model' => $this->embeddingService->getEmbeddingModel($profile),
                         'retrieval_model_profile' => $profile?->slug ?? 'default',
                         'retrieval_model_profile_id' => $retrievalModelProfileId !== 'default' ? $retrievalModelProfileId : null,
-                        'chunking_profile_id' => $chunkingProfileId !== 'default' ? $chunkingProfileId : null,
+                   
                         'embedding_dimensions' => $this->embeddingService->getEmbeddingDimensions($profile),
                         'token_count' => $segment instanceof DocumentSegment ? $segment->token_count : ($segment['token_count'] ?? null),
                         'document_status' => 'ready',

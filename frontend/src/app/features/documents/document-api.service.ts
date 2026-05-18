@@ -39,11 +39,12 @@ export class DocumentApiService {
     }
   }
 
-  async uploadDocument(file: File): Promise<DocumentListItem> {
+  async uploadDocument(file: File, tags: string[] = []): Promise<DocumentListItem> {
     this.error.set('');
 
     const formData = new FormData();
     formData.append('file', file, file.name);
+    tags.forEach((tag) => formData.append('tags[]', tag));
 
     try {
       const document = await firstValueFrom(

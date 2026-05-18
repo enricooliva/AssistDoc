@@ -10,6 +10,7 @@ export interface DocumentListItem {
   filename: string;
   mediaType: string;
   sizeBytes: number;
+  tags: string[];
   status: DocumentStatus;
   uploadedAt: string;
   lastStatusAt: string;

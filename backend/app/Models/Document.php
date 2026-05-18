@@ -22,6 +22,7 @@ class Document extends Model
         'filename',
         'media_type',
         'storage_path',
+        'tags',
         'size_bytes',
         'status',
         'failure_reason',
@@ -34,6 +35,7 @@ class Document extends Model
         'uploaded_at' => 'datetime',
         'last_status_at' => 'datetime',
         'indexed_at' => 'datetime',
+        'tags' => 'array',
     ];
 
     public function uploader(): BelongsTo
