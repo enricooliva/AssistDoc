@@ -22,6 +22,8 @@ class ChatCompletionServiceTest extends TestCase
 
         $this->assertSame('answered', $response['responseState']);
         $this->assertStringContainsString('Manuale Tenant.pdf', $response['body']);
+        $this->assertStringContainsString('Nei documenti del tenant', $response['body']);
+        $this->assertStringContainsString('Risposta elaborata', $response['body']);
     }
 
     #[Test]

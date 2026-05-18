@@ -2,9 +2,13 @@
 
 namespace App\Services\Documents;
 
+use App\Models\ChunkPreparationRun;
+use App\Models\ChunkingProfile;
 use App\Models\Document;
 use App\Models\DocumentSegment;
+use App\Models\RetrievalModelProfile;
 use App\Services\AI\EmbeddingService;
+use App\Services\AI\TokenizerService;
 use App\Services\QdrantService;
 use Illuminate\Support\Str;
 
@@ -13,17 +17,31 @@ class DocumentIndexerService
     public function __construct(
         private readonly EmbeddingService $embeddingService,
         private readonly QdrantService $qdrantService,
+        private readonly TokenizerService $tokenizerService,
     ) {
     }
 
-    public function buildSegments(Document $document, string $text): array
+    public function buildSegments(
+        Document $document,
+        string $text,
+        ?RetrievalModelProfile $profile = null,
+        ?ChunkingProfile $chunkingProfile = null,
+        ?ChunkPreparationRun $run = null,
+    ): array
     {
         $normalizedText = $this->normalizeDocumentText($text);
-        $chunks = $this->chunkTextWithOverlap($normalizedText, 1200, 180);
+        if ($profile && $chunkingProfile) {
+            $chunks = $this->tokenizerService->splitText($normalizedText, $profile, $chunkingProfile);
+        } else {
+            $chunks = array_map(fn (string $chunk): array => [
+                'content' => $chunk,
+                'token_count' => $this->tokenizerService->countTokens($chunk),
+            ], $this->chunkTextWithOverlap($normalizedText, 1200, 180));
+        }
         $segments = [];
 
         foreach ($chunks as $index => $chunk) {
-            $trimmed = trim($chunk);
+            $trimmed = trim($chunk['content']);
             if ($trimmed === '') {
                 continue;
             }
@@ -31,17 +49,28 @@ class DocumentIndexerService
             $segments[] = [
                 'tenant_id' => $document->tenant_id,
                 'document_id' => $document->id,
+                'chunk_preparation_run_id' => $run?->id,
+                'retrieval_model_profile_id' => $profile?->id,
+                'chunking_profile_id' => $chunkingProfile?->id,
                 'segment_index' => $index,
                 'content_text' => $trimmed,
+                'token_count' => $chunk['token_count'],
                 'source_label' => sprintf('Segmento %d', $index + 1),
                 'searchable' => false,
+                'activated_at' => null,
+                'retired_at' => null,
             ];
         }
 
         return $segments;
     }
 
-    public function indexSegments(Document $document, iterable $segments, string $collection = 'documents'): int
+    public function indexSegments(
+        Document $document,
+        iterable $segments,
+        ?RetrievalModelProfile $profile = null,
+        string $collection = 'documents'
+    ): int
     {
         $indexed = 0;
 
@@ -51,7 +80,7 @@ class DocumentIndexerService
                 continue;
             }
 
-            $embedding = $this->embeddingService->embed($content);
+            $embedding = $this->embeddingService->embed($content, $profile);
             if ($embedding === []) {
                 continue;
             }
@@ -70,10 +99,16 @@ class DocumentIndexerService
                         'document_id' => (string) $document->id,
                         'segment_id' => $segmentId ? (string) $segmentId : null,
                         'segment_index' => (int) $segmentIndex,
+                        'chunk_preparation_run_id' => $segment instanceof DocumentSegment ? ($segment->chunk_preparation_run_id ? (string) $segment->chunk_preparation_run_id : null) : (($segment['chunk_preparation_run_id'] ?? null) ? (string) $segment['chunk_preparation_run_id'] : null),
                         'filename' => $document->filename,
                         'source_label' => $sourceLabel,
                         'content_text' => $content,
-                        'embedding_model' => $this->embeddingService->getEmbeddingModel(),
+                        'embedding_model' => $this->embeddingService->getEmbeddingModel($profile),
+                        'retrieval_model_profile' => $profile?->slug ?? 'default',
+                        'retrieval_model_profile_id' => $profile?->id ? (string) $profile->id : null,
+                        'chunking_profile_id' => $segment instanceof DocumentSegment ? ($segment->chunking_profile_id ? (string) $segment->chunking_profile_id : null) : (($segment['chunking_profile_id'] ?? null) ? (string) $segment['chunking_profile_id'] : null),
+                        'embedding_dimensions' => $this->embeddingService->getEmbeddingDimensions($profile),
+                        'token_count' => $segment instanceof DocumentSegment ? $segment->token_count : ($segment['token_count'] ?? null),
                         'document_status' => 'ready',
                     ],
                 ],

@@ -39,6 +39,8 @@ import { DocumentStatusBadgeComponent } from './document-status-badge.component'
             <span *ngIf="document.searchableSegmentsCount !== undefined">
               Segmenti pronti: {{ document.searchableSegmentsCount }}/{{ document.segmentsCount ?? 0 }}
             </span>
+            <span *ngIf="document.activeRetrievalModelProfile">Profilo modello: {{ document.activeRetrievalModelProfile.name }}</span>
+            <span *ngIf="document.activeChunkingProfile">Segmentazione: {{ document.activeChunkingProfile.name }}</span>
           </div>
           <p *ngIf="document.failureReason" class="document-row__failure">
             {{ document.failureReason }}

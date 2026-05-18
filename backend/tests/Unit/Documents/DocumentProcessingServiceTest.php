@@ -2,10 +2,12 @@
 
 namespace Tests\Unit\Documents;
 
+use App\Models\ChunkingProfile;
 use App\Models\Document;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Documents\DocumentProcessingService;
+use App\Services\QdrantService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -50,6 +52,10 @@ class DocumentProcessingServiceTest extends TestCase
             'document_id' => $document->id,
             'searchable' => true,
         ]);
+        $this->assertDatabaseHas('audit_events', [
+            'tenant_id' => $tenant->id,
+            'event_type' => 'document.indexed',
+        ]);
     }
 
     #[Test]
@@ -74,6 +80,10 @@ class DocumentProcessingServiceTest extends TestCase
         $result = app(DocumentProcessingService::class)->process((string) $tenant->id, (string) $document->id);
 
         $this->assertSame('failed', $result['status']);
+        $this->assertDatabaseHas('audit_events', [
+            'tenant_id' => $tenant->id,
+            'event_type' => 'document.index_failed',
+        ]);
     }
 
     #[Test]
@@ -108,6 +118,67 @@ class DocumentProcessingServiceTest extends TestCase
         $this->assertDatabaseHas('document_segments', [
             'document_id' => $document->id,
             'content_text' => 'AssistDoc estrae il testo dal PDF e genera embedding ricercabili.',
+        ]);
+        $this->assertDatabaseHas('audit_events', [
+            'tenant_id' => $tenant->id,
+            'event_type' => 'document.indexed',
+        ]);
+    }
+
+    #[Test]
+    public function it_withdraws_previous_vectors_and_records_validation_failures_when_chunking_is_invalid(): void
+    {
+        $tenant = Tenant::query()->where('slug', 'assistdoc-demo')->firstOrFail();
+        $operator = User::query()->where('email', 'operator@assistdoc.local')->firstOrFail();
+        Storage::put('documents/'.$tenant->id.'/manuale.txt', str_repeat('qwen ', 1000));
+
+        $document = Document::query()->create([
+            'tenant_id' => $tenant->id,
+            'uploaded_by_user_id' => $operator->id,
+            'filename' => 'manuale.txt',
+            'media_type' => 'text/plain',
+            'storage_path' => 'documents/'.$tenant->id.'/manuale.txt',
+            'size_bytes' => 120,
+            'status' => 'queued',
+            'uploaded_at' => now(),
+            'last_status_at' => now(),
+        ]);
+
+        $invalid = ChunkingProfile::query()->create([
+            'name' => 'Troppo Grande',
+            'slug' => 'troppo-grande',
+            'chunk_size_tokens' => 50000,
+            'overlap_tokens' => 10,
+            'active' => true,
+        ]);
+
+        $this->mock(QdrantService::class, function ($mock): void {
+            $mock->shouldReceive('deleteByFilter')->once();
+        });
+
+        $result = app(DocumentProcessingService::class)->process(
+            (string) $tenant->id,
+            (string) $document->id,
+            (string) $invalid->id,
+            (string) $operator->id,
+        );
+
+        $this->assertSame('failed', $result['status']);
+        $this->assertDatabaseHas('chunk_preparation_runs', [
+            'tenant_id' => $tenant->id,
+            'document_id' => $document->id,
+            'retrieval_model_profile_id' => \App\Models\RetrievalModelProfile::query()->where('slug', config('rag.default_retrieval_profile.slug'))->firstOrFail()->id,
+            'chunking_profile_id' => $invalid->id,
+            'status' => 'failed',
+            'failure_code' => 'PREPARATION_FAILED',
+        ]);
+        $this->assertDatabaseHas('preparation_validation_failures', [
+            'document_id' => $document->id,
+            'failure_code' => 'PREPARATION_FAILED',
+        ]);
+        $this->assertDatabaseHas('audit_events', [
+            'tenant_id' => $tenant->id,
+            'event_type' => 'document.index_failed',
         ]);
     }
 

@@ -7,7 +7,7 @@ use App\DataTransferObjects\Chat\ChatExchangeData;
 use App\DataTransferObjects\Chat\ChatMessageData;
 use App\Repositories\ChatConversationRepository;
 use App\Repositories\MessageCitationRepository;
-use App\Services\AI\ChatCompletionService;
+use App\Services\AI\AiSearchService;
 use App\Services\Audit\AuditService;
 use App\Services\Search\SemanticSearchService;
 
@@ -18,7 +18,7 @@ class ChatService
         private readonly SemanticSearchService $searchService,
         private readonly CitationService $citationService,
         private readonly MessageCitationRepository $messageCitationRepository,
-        private readonly ChatCompletionService $chatCompletionService,
+        private readonly AiSearchService $aiSearchService,
         private readonly AuditService $auditService,
     ) {
     }
@@ -76,7 +76,13 @@ class ChatService
         return ChatConversationData::fromModel($conversation)->toArray();
     }
 
-    public function answerQuestion(string $tenantId, string $userId, string $conversationId, string $question): ?array
+    public function answerQuestion(
+        string $tenantId,
+        string $userId,
+        string $conversationId,
+        string $question,
+        ?string $retrievalModelProfileId = null,
+    ): ?array
     {
         $conversation = $this->conversationRepository->findForUser($tenantId, $userId, $conversationId);
 
@@ -99,7 +105,7 @@ class ChatService
         }
 
         $userMessage = $this->conversationRepository->createMessage($conversation, 'user', $question);
-        $search = $this->searchService->query($tenantId, $userId, $question);
+        $search = $this->searchService->query($tenantId, $userId, $question, $retrievalModelProfileId);
         $supportingResults = $search['results'];
 
         if (! $this->hasSufficientSupport($supportingResults)) {
@@ -111,7 +117,16 @@ class ChatService
             $outcome = 'insufficient_information';
         } else {
             try {
-                $assistantPayload = $this->chatCompletionService->answer($question, $supportingResults);
+                $assistantPayload = [
+                    'body' => $this->aiSearchService->askLlamaWithContext(
+                        $question,
+                        $this->buildContext($supportingResults),
+                        null,
+                        true,
+                        false,
+                    ),
+                    'responseState' => 'answered',
+                ];
                 $citations = $this->citationService->fromSearchResults($supportingResults);
                 $outcome = $assistantPayload['responseState'];
             } catch (\Throwable) {
@@ -149,7 +164,20 @@ class ChatService
             conversationId: (string) $conversation->id,
             userMessage: ChatMessageData::fromModel($userMessage),
             assistantMessage: ChatMessageData::fromModel($assistantMessage),
+            retrievalModelProfileId: $search['retrievalModelProfileId'] ?? null,
         ))->toArray();
+    }
+
+    private function buildContext(array $results): string
+    {
+        return implode("\n\n", array_map(static function (array $result): string {
+            return sprintf(
+                "[%s - %s]\n%s",
+                $result['documentName'] ?? 'Documento',
+                $result['sourceLabel'] ?? 'Segmento',
+                trim((string) ($result['quoteText'] ?? $result['snippet'] ?? ''))
+            );
+        }, array_slice($results, 0, 4)));
     }
 
     private function hasSufficientSupport(array $results): bool

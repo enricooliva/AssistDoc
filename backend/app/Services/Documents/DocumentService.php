@@ -2,12 +2,10 @@
 
 namespace App\Services\Documents;
 
-use App\Jobs\ProcessDocumentJob;
 use App\Models\Document;
 use App\Repositories\DocumentRepository;
 use App\Services\Audit\AuditService;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 
 class DocumentService
 {
@@ -58,7 +56,11 @@ class DocumentService
             'storage_path' => $document->storage_path,
         ]);
 
-        ProcessDocumentJob::dispatchSync($tenantId, (string) $document->id);
+        app(DocumentProcessingService::class)->processWithDefaultProfiles(
+            $tenantId,
+            (string) $document->id,
+            $userId,
+        );
 
         return $this->show($tenantId, (string) $document->id) ?? [];
     }
@@ -91,7 +93,11 @@ class DocumentService
         $this->documentRepository->save($document);
 
         $this->auditService->record('document.retry_requested', $tenantId, $userId, ['document_id' => $documentId]);
-        ProcessDocumentJob::dispatchSync($tenantId, $documentId);
+        app(DocumentProcessingService::class)->processWithDefaultProfiles(
+            $tenantId,
+            $documentId,
+            $userId,
+        );
 
         return [
             'status' => 'queued',
@@ -112,5 +118,27 @@ class DocumentService
         }
 
         return $this->documentRepository->save($document);
+    }
+
+    public function startPreparationRun(
+        string $tenantId,
+        string $userId,
+        string $documentId,
+        string $chunkingProfileId,
+    ): array {
+        $document = $this->documentRepository->findModel($tenantId, $documentId);
+        if (! $document) {
+            return [
+                'status' => 'not_found',
+                'documentId' => $documentId,
+            ];
+        }
+
+        return app(DocumentProcessingService::class)->process(
+            $tenantId,
+            $documentId,
+            $chunkingProfileId,
+            $userId,
+        );
     }
 }

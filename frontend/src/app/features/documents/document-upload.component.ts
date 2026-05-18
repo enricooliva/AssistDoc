@@ -15,7 +15,7 @@ import { DocumentApiService } from './document-api.service';
       <div class="upload-card__header">
         <div>
           <h2>Carica documento</h2>
-          <p>Carica un file riservato del tenant per avviare l'indicizzazione semantica.</p>
+          <p>Carica un file riservato del tenant per avviare automaticamente l'indicizzazione semantica con i profili small, medium e large.</p>
         </div>
         <span class="upload-card__chip">Indicizzazione protetta</span>
       </div>

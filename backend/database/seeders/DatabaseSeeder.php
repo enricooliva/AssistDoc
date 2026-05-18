@@ -12,7 +12,8 @@ class DatabaseSeeder extends Seeder
             TenantSeeder::class,
             UserSeeder::class,
             RoleAssignmentSeeder::class,
+            RetrievalModelProfileSeeder::class,
+            ChunkingProfileSeeder::class,
         ]);
     }
 }
-

@@ -2,13 +2,22 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { apiUrl } from '../../core/api/api-url';
-import { DocumentListItem, DocumentListResponse, DocumentRetryResponse } from './document.models';
+import {
+  ChunkingProfile,
+  ChunkingProfileListResponse,
+  DocumentListItem,
+  DocumentListResponse,
+  DocumentRetryResponse,
+  PreparationRunDetail,
+  PreparationRunResponse,
+} from './document.models';
 
 @Injectable({ providedIn: 'root' })
 export class DocumentApiService {
   private readonly http = inject(HttpClient);
 
   readonly documents = signal<DocumentListItem[]>([]);
+  readonly chunkingProfiles = signal<ChunkingProfile[]>([]);
   readonly loading = signal(false);
   readonly error = signal('');
 
@@ -66,6 +75,35 @@ export class DocumentApiService {
       this.error.set(message);
       throw new Error(message);
     }
+  }
+
+  async loadChunkingProfiles(): Promise<ChunkingProfile[]> {
+    const response = await firstValueFrom(
+      this.http.get<ChunkingProfileListResponse>(apiUrl('/api/v1/rag/chunking-profiles')),
+    );
+    this.chunkingProfiles.set(response.data);
+
+    return response.data;
+  }
+
+  async startPreparationRun(
+    documentId: string,
+    chunkingProfileId: string,
+  ): Promise<PreparationRunResponse> {
+    const response = await firstValueFrom(
+      this.http.post<PreparationRunResponse>(apiUrl(`/api/v1/documents/${documentId}/preparation-runs`), {
+        chunkingProfileId,
+      }),
+    );
+    await this.loadDocuments();
+
+    return response;
+  }
+
+  async loadPreparationRun(documentId: string, runId: string): Promise<PreparationRunDetail> {
+    return await firstValueFrom(
+      this.http.get<PreparationRunDetail>(apiUrl(`/api/v1/documents/${documentId}/preparation-runs/${runId}`)),
+    );
   }
 
   private extractError(error: unknown, fallback: string): string {

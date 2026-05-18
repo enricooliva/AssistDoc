@@ -64,7 +64,7 @@ class ChatController extends Controller
             $user['tenant_id'],
             $user['id'],
             $conversationId,
-            $request->validated('question')
+            $request->validated('question'),
         );
 
         if ($exchange === null) {

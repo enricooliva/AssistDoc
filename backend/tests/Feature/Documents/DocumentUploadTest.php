@@ -38,7 +38,9 @@ class DocumentUploadTest extends TestCase
             ->post('/api/v1/documents', ['file' => $file], ['Accept' => 'application/json']);
 
         $response->assertCreated()
-            ->assertJsonPath('filename', 'manuale.txt');
+            ->assertJsonPath('filename', 'manuale.txt')
+            ->assertJsonPath('status', 'ready')
+            ->assertJsonPath('activeChunkingProfile.name', 'Large');
 
         $documentId = (string) $response->json('id');
 
@@ -82,7 +84,8 @@ class DocumentUploadTest extends TestCase
 
         $response->assertCreated()
             ->assertJsonPath('filename', 'manuale.pdf')
-            ->assertJsonPath('status', 'ready');
+            ->assertJsonPath('status', 'ready')
+            ->assertJsonPath('activeChunkingProfile.name', 'Large');
 
         $documentId = (string) $response->json('id');
 
@@ -96,6 +99,7 @@ class DocumentUploadTest extends TestCase
             'searchable' => true,
             'content_text' => 'AssistDoc estrae il contenuto dai PDF caricati prima di indicizzarli.',
         ]);
+        $this->assertDatabaseCount('document_segments', 1);
     }
 
     private function buildPdf(string $text): string

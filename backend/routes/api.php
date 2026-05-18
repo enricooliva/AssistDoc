@@ -18,6 +18,10 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/documents', [DocumentController::class, 'store'])->middleware('role:super-admin,operator');
         Route::get('/documents/{documentId}', [DocumentController::class, 'show'])->middleware('role:super-admin,operator,viewer');
         Route::post('/documents/{documentId}/retry', [DocumentController::class, 'retry'])->middleware('role:super-admin,operator');
+        Route::post('/documents/{documentId}/preparation-runs', [DocumentController::class, 'startPreparationRun'])->middleware('role:super-admin,operator');
+        Route::get('/documents/{documentId}/preparation-runs/{runId}', [DocumentController::class, 'showPreparationRun'])->middleware('role:super-admin,operator,viewer');
+
+        Route::get('/rag/chunking-profiles', [DocumentController::class, 'listChunkingProfiles'])->middleware('role:super-admin,operator');
 
         Route::post('/search/queries', [SearchController::class, 'query'])->middleware('role:super-admin,operator,viewer');
         Route::get('/chat/conversations', [ChatController::class, 'index'])->middleware('role:super-admin,operator,viewer');

@@ -10,7 +10,7 @@ class DocumentRepository
     public function listForTenant(string $tenantId): array
     {
         return Document::query()
-            ->with(['uploader', 'segments'])
+            ->with(['uploader', 'segments', 'activeRetrievalModelProfile', 'activeChunkingProfile', 'activePreparationRun'])
             ->where('tenant_id', $tenantId)
             ->orderByDesc('uploaded_at')
             ->get()
@@ -21,7 +21,7 @@ class DocumentRepository
     public function find(string $tenantId, string $documentId): ?array
     {
         $document = Document::query()
-            ->with(['uploader', 'segments'])
+            ->with(['uploader', 'segments', 'activeRetrievalModelProfile', 'activeChunkingProfile', 'activePreparationRun'])
             ->where('tenant_id', $tenantId)
             ->whereKey($documentId)
             ->first();
@@ -32,7 +32,7 @@ class DocumentRepository
     public function findModel(string $tenantId, string $documentId): ?Document
     {
         return Document::query()
-            ->with(['uploader', 'segments'])
+            ->with(['uploader', 'segments', 'activeRetrievalModelProfile', 'activeChunkingProfile', 'activePreparationRun'])
             ->where('tenant_id', $tenantId)
             ->whereKey($documentId)
             ->first();
@@ -47,7 +47,7 @@ class DocumentRepository
     {
         $document->save();
 
-        return $document->refresh(['uploader', 'segments']);
+        return $document->refresh(['uploader', 'segments', 'activeRetrievalModelProfile', 'activeChunkingProfile', 'activePreparationRun']);
     }
 
     private function mapDocument(Document $document): array
@@ -70,6 +70,15 @@ class DocumentRepository
                 'id' => $document->uploader ? (string) $document->uploader->id : '',
                 'fullName' => $document->uploader?->name ?? 'Utente non disponibile',
             ],
+            'activeRetrievalModelProfile' => $document->activeRetrievalModelProfile ? [
+                'id' => (string) $document->activeRetrievalModelProfile->id,
+                'name' => $document->activeRetrievalModelProfile->name,
+            ] : null,
+            'activeChunkingProfile' => $document->activeChunkingProfile ? [
+                'id' => (string) $document->activeChunkingProfile->id,
+                'name' => $document->activeChunkingProfile->name,
+            ] : null,
+            'activePreparationRunId' => $document->activePreparationRun ? (string) $document->activePreparationRun->id : null,
             'segmentsCount' => $segments->count(),
             'searchableSegmentsCount' => $segments->where('searchable', true)->count(),
         ];

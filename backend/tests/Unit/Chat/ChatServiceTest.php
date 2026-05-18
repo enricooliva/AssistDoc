@@ -3,6 +3,7 @@
 namespace Tests\Unit\Chat;
 
 use App\Models\ChatConversation;
+use App\Models\ChunkingProfile;
 use App\Models\Document;
 use App\Models\DocumentSegment;
 use App\Models\User;
@@ -95,6 +96,49 @@ class ChatServiceTest extends TestCase
         $this->assertSame('failed', $response['assistantMessage']['responseState']);
     }
 
+    #[Test]
+    public function it_uses_the_configured_retrieval_profile_for_semantic_search(): void
+    {
+        [$viewer, $conversation] = $this->prepareConversation();
+        $profile = \App\Models\RetrievalModelProfile::query()->where('slug', config('rag.default_retrieval_profile.slug'))->firstOrFail();
+
+        $searchService = Mockery::mock(SemanticSearchService::class);
+        $searchService->shouldReceive('query')
+            ->once()
+            ->with((string) $viewer->tenant_id, (string) $viewer->id, 'Come funziona AssistDoc?', null)
+            ->andReturn([
+                'query' => 'Come funziona AssistDoc?',
+                'retrievalModelProfileId' => (string) $profile->id,
+                'results' => [[
+                    'documentId' => '1',
+                    'documentSegmentId' => '1',
+                    'documentName' => 'Manuale Tenant.pdf',
+                    'quoteText' => 'AssistDoc applica isolamento tenant lato server.',
+                    'sourceLabel' => 'Segmento 1',
+                    'score' => 0.9,
+                ]],
+            ]);
+
+        $service = new ChatService(
+            app(ChatConversationRepository::class),
+            $searchService,
+            app(CitationService::class),
+            app(MessageCitationRepository::class),
+            app(ChatCompletionService::class),
+            app(AuditService::class),
+        );
+
+        $response = $service->answerQuestion(
+            (string) $viewer->tenant_id,
+            (string) $viewer->id,
+            (string) $conversation->id,
+            'Come funziona AssistDoc?',
+        );
+
+        $this->assertSame((string) $profile->id, $response['retrievalModelProfileId']);
+        $this->assertSame('answered', $response['assistantMessage']['responseState']);
+    }
+
     private function prepareConversation(): array
     {
         $viewer = User::query()->where('email', 'viewer@assistdoc.local')->firstOrFail();
@@ -127,6 +171,8 @@ class ChatServiceTest extends TestCase
         DocumentSegment::query()->create([
             'tenant_id' => $viewer->tenant_id,
             'document_id' => $document->id,
+            'retrieval_model_profile_id' => \App\Models\RetrievalModelProfile::query()->where('slug', config('rag.default_retrieval_profile.slug'))->firstOrFail()->id,
+            'chunking_profile_id' => ChunkingProfile::query()->where('slug', 'medium')->firstOrFail()->id,
             'segment_index' => 0,
             'content_text' => 'AssistDoc applica isolamento tenant lato server.',
             'source_label' => 'Segmento 1',

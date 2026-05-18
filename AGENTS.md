@@ -1,6 +1,6 @@
 # AssistDoc Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-05-11
+Auto-generated from all feature plans. Last updated: 2026-05-14
 
 ## Active Technologies
 - PHP 8.3 (Laravel 12), TypeScript 5.x (Angular 20), YAML for API contracts + Laravel API stack, Angular SPA, JWT authentication, Bootstrap, ngx-formly (002-user-auth)
@@ -9,6 +9,10 @@ Auto-generated from all feature plans. Last updated: 2026-05-11
 - Relational database for `documents` and `document_segments`, private file storage for uploaded source files, Qdrant for semantic retrieval vectors (003-document-ingestion)
 - PHP 8.3 (Laravel 12), TypeScript 5.x (Angular 20) + Laravel API stack, Angular SPA, Bootstrap, ngx-formly, JWT authentication, Qdrant vector search, existing `SemanticSearchService`, existing `ChatCompletionService`, Ollama/Llama3.2 response generation (004-chat-semantic-answer)
 - Relational database for `chat_conversations`, `chat_messages`, and citations; Qdrant for tenant-scoped retrieval vectors; existing private document storage (004-chat-semantic-answer)
+- PHP 8.3 (Laravel 12), TypeScript 5.x (Angular 20), YAML for API contracts + Laravel API stack, Angular SPA, Bootstrap, ngx-formly, JWT authentication, Laravel queue workers, Qdrant vector search, existing `DocumentProcessingService`, `DocumentIndexerService`, `EmbeddingService`, `SemanticSearchService`, and `AiSearchService`; Ollama-hosted `llama3.2` and `Qwen3` generation models; profile-aware tokenizer counting service introduced in the backend (006-qwen3-rag-support)
+- Relational database for documents, segments, and new profile/run metadata; Qdrant collections for profile-compatible semantic vectors; existing private document storage (006-qwen3-rag-support)
+- PHP 8.3 (Laravel 12), TypeScript 5.x (Angular 20) + Laravel API stack, Angular SPA, Bootstrap, ngx-formly, ngx-datatable, JWT authentication, Qdrant vector search, Ollama-hosted generation and embedding models (006-qwen3-rag-support)
+- PostgreSQL-style relational storage for profiles, documents, runs, and audit events; private file storage for uploaded source files; Qdrant for vector payloads (006-qwen3-rag-support)
 
 - PHP 8.3 (Laravel 12), TypeScript 5.x (Angular 20), SQL for relational schema, YAML for infrastructure and API contracts + Laravel API stack, Angular SPA, Bootstrap, ngx-formly, ngx-datatable, Laravel queue workers, JWT authentication, Qdrant vector search, Ollama chat and embedding models (001-private-doc-assistant)
 
@@ -29,9 +33,9 @@ npm test && npm run lint
 PHP 8.3 (Laravel 12), TypeScript 5.x (Angular 20), SQL for relational schema, YAML for infrastructure and API contracts: Follow standard conventions
 
 ## Recent Changes
+- 006-qwen3-rag-support: Added PHP 8.3 (Laravel 12), TypeScript 5.x (Angular 20) + Laravel API stack, Angular SPA, Bootstrap, ngx-formly, ngx-datatable, JWT authentication, Qdrant vector search, Ollama-hosted generation and embedding models
+- 006-qwen3-rag-support: Added PHP 8.3 (Laravel 12), TypeScript 5.x (Angular 20), YAML for API contracts + Laravel API stack, Angular SPA, Bootstrap, ngx-formly, JWT authentication, Laravel queue workers, Qdrant vector search, existing `DocumentProcessingService`, `DocumentIndexerService`, `EmbeddingService`, `SemanticSearchService`, and `AiSearchService`; Ollama-hosted `llama3.2` and `Qwen3` generation models; profile-aware tokenizer counting service introduced in the backend
 - 004-chat-semantic-answer: Added PHP 8.3 (Laravel 12), TypeScript 5.x (Angular 20) + Laravel API stack, Angular SPA, Bootstrap, ngx-formly, JWT authentication, Qdrant vector search, existing `SemanticSearchService`, existing `ChatCompletionService`, Ollama/Llama3.2 response generation
-- 003-document-ingestion: Added PHP 8.3 (Laravel 12), TypeScript 5.x (Angular 20), YAML for API contracts + Laravel API stack, Angular SPA, Bootstrap Italia styling on top of Bootstrap, ngx-formly, JWT authentication, Laravel queue workers, Qdrant vector search, existing `EmbeddingService`, existing `AttachmentIndexerService` chunking pattern
-- 002-user-auth: Added PHP 8.3 (Laravel 12), TypeScript 5.x (Angular 20), YAML for API contracts + Laravel API stack, Angular SPA, JWT authentication, Bootstrap, ngx-formly
 
 
 <!-- MANUAL ADDITIONS START -->

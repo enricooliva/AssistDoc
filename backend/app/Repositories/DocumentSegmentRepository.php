@@ -12,6 +12,7 @@ class DocumentSegmentRepository
         DocumentSegment::query()
             ->where('tenant_id', $document->tenant_id)
             ->where('document_id', $document->id)
+            ->whereNull('retired_at')
             ->delete();
 
         $created = [];
@@ -27,7 +28,11 @@ class DocumentSegmentRepository
         DocumentSegment::query()
             ->where('tenant_id', $document->tenant_id)
             ->where('document_id', $document->id)
-            ->update(['searchable' => true]);
+            ->whereNull('retired_at')
+            ->update([
+                'searchable' => true,
+                'activated_at' => now(),
+            ]);
     }
 
     public function deleteForDocument(Document $document): void
@@ -35,19 +40,29 @@ class DocumentSegmentRepository
         DocumentSegment::query()
             ->where('tenant_id', $document->tenant_id)
             ->where('document_id', $document->id)
-            ->delete();
+            ->update([
+                'searchable' => false,
+                'retired_at' => now(),
+            ]);
     }
 
-    public function semanticSearch(string $tenantId, string $query): array
+    public function semanticSearch(string $tenantId, string $query, ?string $profileId = null): array
     {
-        return DocumentSegment::query()
+        $builder = DocumentSegment::query()
             ->with('document')
             ->where('tenant_id', $tenantId)
             ->where('searchable', true)
+            ->whereNull('retired_at')
             ->where(function ($builder) use ($query): void {
                 $builder->where('content_text', 'like', '%'.$query.'%')
                     ->orWhere('source_label', 'like', '%'.$query.'%');
-            })
+            });
+
+        if ($profileId !== null) {
+            $builder->where('retrieval_model_profile_id', $profileId);
+        }
+
+        return $builder
             ->limit(5)
             ->get()
             ->map(function (DocumentSegment $segment) use ($tenantId, $query): array {
@@ -59,6 +74,7 @@ class DocumentSegmentRepository
                     'quoteText' => mb_substr($segment->content_text, 0, 240),
                     'score' => 0.9,
                     'sourceLabel' => $segment->source_label,
+                    'retrievalModelProfileId' => $segment->retrieval_model_profile_id ? (string) $segment->retrieval_model_profile_id : null,
                     'tenantId' => $tenantId,
                     'query' => $query,
                 ];

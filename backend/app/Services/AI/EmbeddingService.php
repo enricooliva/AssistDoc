@@ -2,75 +2,85 @@
 
 namespace App\Services\AI;
 
+use App\Models\RetrievalModelProfile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
 class EmbeddingService
 {
-    public function embed(string $text): array
+    public function embed(string $text, ?RetrievalModelProfile $profile = null): array
     {
-        $normalized = $this->prepareInput($text);
+        $normalized = $this->prepareInput($text, $profile);
 
         if ($normalized === '') {
             return [];
         }
 
         if (app()->environment('testing')) {
-            return $this->fakeEmbedding($normalized);
+            return $this->fakeEmbedding($normalized, $profile);
         }
 
-        $response = Http::timeout(30)->post($this->getEmbeddingEndpoint(), [
-            'model' => $this->getEmbeddingModel(),
+        $response = Http::timeout(30)->post($this->getEmbeddingEndpoint($profile), [
+            'model' => $this->getEmbeddingModel($profile),
             'prompt' => $normalized,
         ]);
 
         if ($response->failed()) {
             throw new \RuntimeException(sprintf(
                 'Embedding request failed for model %s at %s.',
-                $this->getEmbeddingModel(),
-                $this->getEmbeddingEndpoint(),
+                $this->getEmbeddingModel($profile),
+                $this->getEmbeddingEndpoint($profile),
             ));
         }
 
         $embedding = $response->json('embedding') ?? $response->json('embeddings.0');
 
-        if (! is_array($embedding) || count($embedding) !== $this->getEmbeddingDimensions()) {
+        if (! is_array($embedding) || count($embedding) !== $this->getEmbeddingDimensions($profile)) {
             throw new \RuntimeException(sprintf(
                 'Embedding response for model %s did not return %d dimensions.',
-                $this->getEmbeddingModel(),
-                $this->getEmbeddingDimensions(),
+                $this->getEmbeddingModel($profile),
+                $this->getEmbeddingDimensions($profile),
             ));
         }
 
         return array_map(static fn ($value): float => (float) $value, $embedding);
     }
 
-    public function generateEmbedding(string $text): array
+    public function generateEmbedding(string $text, ?RetrievalModelProfile $profile = null): array
     {
-        return $this->embed($text);
+        return $this->embed($text, $profile);
     }
 
-    public function getEmbeddingModel(): string
+    public function getEmbeddingModel(?RetrievalModelProfile $profile = null): string
     {
-        return (string) config('services.ollama.embedding_model', 'mxbai-embed-large');
+        return $profile?->embedding_model
+            ?? (string) config('rag.default_retrieval_profile.embedding_model', config('services.ollama.embedding_model', 'qwen3-embedding'));
     }
 
-    public function getEmbeddingEndpoint(): string
+    public function getEmbeddingEndpoint(?RetrievalModelProfile $profile = null): string
     {
         return (string) config('services.ollama.embedding_url', 'http://192.168.5.137:11434/api/embeddings');
     }
 
-    public function getEmbeddingDimensions(): int
+    public function getEmbeddingDimensions(?RetrievalModelProfile $profile = null): int
     {
-        return (int) config('services.ollama.embedding_dimensions', 1024);
+        return $profile?->embedding_dimensions
+            ?? (int) config('rag.default_retrieval_profile.embedding_dimensions', config('services.ollama.embedding_dimensions', 1024));
     }
 
-    public function getEmbeddingMaxInputChars(): int
+    public function getEmbeddingMaxInputChars(?RetrievalModelProfile $profile = null): int
     {
-        return (int) config('services.ollama.embedding_max_input_chars', 1800);
+        if ($profile) {
+            return max(1800, (int) $profile->token_window * 8);
+        }
+
+        return max(
+            (int) config('services.ollama.embedding_max_input_chars', 1800),
+            (int) config('rag.default_retrieval_profile.token_window', 40000) * 8,
+        );
     }
 
-    private function prepareInput(string $text): string
+    private function prepareInput(string $text, ?RetrievalModelProfile $profile = null): string
     {
         $normalized = preg_replace('/\s+/u', ' ', trim($text)) ?? trim($text);
 
@@ -79,16 +89,16 @@ class EmbeddingService
         }
 
         return Str::of($normalized)
-            ->limit($this->getEmbeddingMaxInputChars(), '')
+            ->limit($this->getEmbeddingMaxInputChars($profile), '')
             ->rtrim()
             ->toString();
     }
 
-    private function fakeEmbedding(string $text): array
+    private function fakeEmbedding(string $text, ?RetrievalModelProfile $profile = null): array
     {
         $vector = [];
 
-        for ($index = 0; $index < $this->getEmbeddingDimensions(); $index++) {
+        for ($index = 0; $index < $this->getEmbeddingDimensions($profile); $index++) {
             $hash = hash('sha256', $text.':'.$index);
             $value = hexdec(substr($hash, 0, 8)) / 0xffffffff;
             $vector[] = ($value * 2) - 1;
