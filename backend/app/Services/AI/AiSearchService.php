@@ -8,17 +8,28 @@ use Illuminate\Support\Facades\Log;
 
 class AiSearchService
 {
-    protected static string $baseUrl = 'http://localhost:11434/api/generate';
-    protected static string $chatUrl = 'http://localhost:11434/api/chat';
-    protected static string $defaultModel = 'llama3.2';
+    // protected static string $baseUrl = 'http://localhost:11434/api/generate';
+    // protected static string $chatUrl = 'http://localhost:11434/api/chat';
+    // protected static string $defaultModel = 'llama3.2';
+
+    public function getGenerationModel(?RetrievalModelProfile $profile = null): string
+    {
+        return $profile?->generation_model
+            ?? (string) config('rag.default_retrieval_profile.generation_model', config('services.ollama.generation_model', 'llama3.2'));
+    }
+
+    public function getGenerationEndpoint(?RetrievalModelProfile $profile = null): string
+    {
+        return (string) config('services.ollama.generation_url', 'http://192.168.5.137:11434/api/generate');
+    }
 
     public function sendPromptToAi(string $prompt, ?string $model = null): JsonResponse|\Illuminate\Http\Client\Response
     {
         try {
             return Http::timeout(300)
                 ->connectTimeout(60)
-                ->post(static::$baseUrl, [
-                    'model' => $model ?? static::$defaultModel,
+                ->post($this->getGenerationEndpoint(), [
+                    'model' => $model ?? $this->getGenerationModel(),
                     'prompt' => $prompt,
                     'stream' => false,
                     'temperature' => 0.1,
@@ -39,7 +50,7 @@ class AiSearchService
         bool $useReasoning = true,
         bool $queryIsFinalPrompt = false
     ): string {
-        $model = $model ?? static::$defaultModel;
+        $model = $model ?? $this->getGenerationModel();
         $reasoning = $useReasoning ? <<<REASONING
 Il modello può ragionare internamente prima di formulare la risposta finale.
 Usa il ragionamento solo per capire meglio il contesto, ma non mostrarlo mai nella risposta finale.
@@ -98,7 +109,7 @@ PROMPT;
                 'prompt' => $prompt,
             ]);
 
-            $response = Http::timeout(120)->post(static::$baseUrl, [
+            $response = Http::timeout(120)->post($this->getGenerationEndpoint(), [
                 'model' => $model,
                 'prompt' => $prompt,
                 'options' => [

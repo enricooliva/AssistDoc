@@ -4,6 +4,8 @@ namespace Tests\Unit\Documents;
 
 use App\Models\ChunkingProfile;
 use App\Models\Document;
+use App\Models\DocumentSegment;
+use App\Models\RetrievalModelProfile;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Documents\DocumentProcessingService;
@@ -180,6 +182,46 @@ class DocumentProcessingServiceTest extends TestCase
             'tenant_id' => $tenant->id,
             'event_type' => 'document.index_failed',
         ]);
+    }
+
+    #[Test]
+    public function it_preserves_segments_from_other_chunking_profiles_when_reprocessing_a_document(): void
+    {
+        $tenant = Tenant::query()->where('slug', 'assistdoc-demo')->firstOrFail();
+        $operator = User::query()->where('email', 'operator@assistdoc.local')->firstOrFail();
+        $profile = RetrievalModelProfile::query()->where('slug', config('rag.default_retrieval_profile.slug'))->firstOrFail();
+        $small = ChunkingProfile::query()->where('slug', 'small')->firstOrFail();
+        $large = ChunkingProfile::query()->where('slug', 'large')->firstOrFail();
+        Storage::put('documents/'.$tenant->id.'/manuale.txt', str_repeat('AssistDoc organizza segmenti. ', 50));
+
+        $document = Document::query()->create([
+            'tenant_id' => $tenant->id,
+            'uploaded_by_user_id' => $operator->id,
+            'filename' => 'manuale.txt',
+            'media_type' => 'text/plain',
+            'storage_path' => 'documents/'.$tenant->id.'/manuale.txt',
+            'size_bytes' => 120,
+            'status' => 'queued',
+            'uploaded_at' => now(),
+            'last_status_at' => now(),
+        ]);
+
+        $service = app(DocumentProcessingService::class);
+        $service->process((string) $tenant->id, (string) $document->id, (string) $small->id, (string) $operator->id);
+        $service->process((string) $tenant->id, (string) $document->id, (string) $large->id, (string) $operator->id);
+
+        $this->assertGreaterThan(0, DocumentSegment::query()
+            ->where('document_id', $document->id)
+            ->where('retrieval_model_profile_id', $profile->id)
+            ->where('chunking_profile_id', $small->id)
+            ->whereNull('retired_at')
+            ->count());
+        $this->assertGreaterThan(0, DocumentSegment::query()
+            ->where('document_id', $document->id)
+            ->where('retrieval_model_profile_id', $profile->id)
+            ->where('chunking_profile_id', $large->id)
+            ->whereNull('retired_at')
+            ->count());
     }
 
     private function buildPdf(string $text): string

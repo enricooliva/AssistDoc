@@ -36,7 +36,7 @@ return [
     ],
 
     'qdrant' => [
-        'url' => env('QDRANT_URL', 'http://localhost:6333'),
+        'url' => env('QDRANT_URL', 'http://192.168.5.137:6333'),
         'collection' => env('QDRANT_COLLECTION', 'assistdoc_segments'),
     ],
 

@@ -28,7 +28,7 @@ class CitationService
                 'documentSegmentId' => (string) $documentSegmentId,
                 'documentName' => $result['documentName'],
                 'sourceLabel' => $result['sourceLabel'],
-                'quoteText' => mb_substr($quoteText, 0, 280),
+                'quoteText' => $quoteText, // mb_substr($quoteText, 0, 280),
             ];
         }
 

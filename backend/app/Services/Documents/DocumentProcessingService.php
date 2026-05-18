@@ -43,6 +43,8 @@ class DocumentProcessingService
 
         $profile = $this->retrievalModelProfileService->defaultAvailable();
         $chunkingProfile = $this->chunkingProfileService->resolve($chunkingProfileId);
+        $retrievalModelProfileId = (string) $profile->id;
+        $resolvedChunkingProfileId = (string) $chunkingProfile->id;
         $run = $this->preparationRunRepository->create([
             'tenant_id' => $tenantId,
             'document_id' => $documentId,
@@ -57,8 +59,7 @@ class DocumentProcessingService
         $run->started_at = now();
         $this->preparationRunRepository->save($run);
         if (! $preserveExisting) {
-            $this->segmentRepository->deleteForDocument($document);
-            $this->documentIndexerService->deleteDocumentVectors($document);
+            $this->segmentRepository->deleteForDocument($document, $retrievalModelProfileId, $resolvedChunkingProfileId);         
         }
 
         try {
@@ -72,13 +73,18 @@ class DocumentProcessingService
                 throw new \RuntimeException('Non sono stati generati segmenti ricercabili dal documento caricato.');
             }
 
-            $persisted = $this->segmentRepository->replaceForDocument($document, $segments);
+            $persisted = $this->segmentRepository->replaceForDocument(
+                $document,
+                $segments,
+                $retrievalModelProfileId,
+                $resolvedChunkingProfileId,
+            );
             $indexedCount = $this->documentIndexerService->indexSegments($document, $persisted, $profile);
             if ($indexedCount !== count($persisted)) {
                 throw new \RuntimeException('Non tutti i segmenti hanno ricevuto un embedding valido.');
             }
 
-            $this->segmentRepository->markSearchable($document);
+            $this->segmentRepository->markSearchable($document, $retrievalModelProfileId, $resolvedChunkingProfileId);
             $document->active_retrieval_model_profile_id = $profile->id;
             $document->active_chunking_profile_id = $chunkingProfile->id;
             $document->active_preparation_run_id = $run->id;
@@ -131,6 +137,7 @@ class DocumentProcessingService
     {
         $profile = $this->retrievalModelProfileService->defaultAvailable();
         $chunkingProfiles = $this->chunkingProfileService->defaultProfiles();
+        $document = $this->documentRepository->findModel($tenantId, $documentId);
 
         if ($chunkingProfiles === []) {
             throw new \RuntimeException('Nessun profilo di segmentazione disponibile.');
@@ -141,6 +148,14 @@ class DocumentProcessingService
             'status' => 'not_found',
             'preparationRunId' => null,
         ];
+
+        $this->documentIndexerService->deleteDocumentVectors(
+                $document,
+                null,
+                null,
+                null,
+                (int) $profile->embedding_dimensions,
+        );
 
         foreach (array_values($chunkingProfiles) as $chunkingProfile) {
             $lastResult = $this->process(

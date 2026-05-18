@@ -135,15 +135,15 @@ export class DocumentUploadComponent {
         description: 'Formati supportati: TXT, Markdown, PDF. Dimensione massima: 5 MB.',
         required: true,
         accept: '.txt,.md,.pdf,text/plain,text/markdown,application/pdf',
+        onSelected: (selFile, field) => { this.submit(selFile, field); }
       },
     },
   ];
 
-  async submit(): Promise<void> {
+  async submit(selectedFile, field): Promise<void> {
     this.feedback.set('');
     this.form.markAllAsTouched();
-
-    const selectedFile = this.model().file;
+    
     if (!selectedFile) {
       this.feedback.set('Seleziona un documento prima di procedere.');
       return;

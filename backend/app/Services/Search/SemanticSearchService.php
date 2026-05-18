@@ -22,28 +22,32 @@ class SemanticSearchService
     public function query(string $tenantId, string $userId, string $query, ?string $profileId = null): array
     {
         $profile = $this->retrievalModelProfileService->resolve($profileId);
-        $vectorMatches = $this->qdrantService->search('documents', $this->embeddingService->embed($query, $profile), [
-            'must' => [
-                ['key' => 'tenant_id', 'match' => ['value' => $tenantId]],
-                ['key' => 'document_status', 'match' => ['value' => 'ready']],
-                ['key' => 'retrieval_model_profile_id', 'match' => ['value' => (string) $profile->id]],
+        $vectorMatches = $this->normalizeVectorMatches($this->qdrantService->search(
+            $this->embeddingService->embed($query, $profile),
+            5,
+            null,
+            [
+                ['field' => 'tenant_id', 'operator' => '=', 'value' => $tenantId],
+                ['field' => 'document_status', 'operator' => '=', 'value' => 'ready'],
+                ['field' => 'retrieval_model_profile_id', 'operator' => '=', 'value' => (string) $profile->id],
             ],
-        ], 5);
+            null,
+            $this->embeddingService->getEmbeddingDimensions($profile)
+        ));
 
         $results = $vectorMatches !== []
             ? array_map(fn (array $match): array => [
                 'documentId' => $match['payload']['document_id'],
                 'documentSegmentId' => $match['payload']['segment_id'] ?? null,
                 'documentName' => $match['payload']['filename'],
-                'snippet' => mb_substr($match['payload']['content_text'], 0, 240),
-                'quoteText' => mb_substr($match['payload']['content_text'], 0, 240),
+                'snippet' => $match['payload']['content_text'],
+                'quoteText' => $match['payload']['content_text'],
                 'score' => round($match['score'], 4),
                 'sourceLabel' => $match['payload']['source_label'],
                 'retrievalModelProfileId' => $match['payload']['retrieval_model_profile_id'] ?? null,
                 'tenantId' => $tenantId,
-                'query' => $query,
-            ], $vectorMatches)
-            : $this->segmentRepository->semanticSearch($tenantId, $query, (string) $profile->id);
+                'query' => $query, 
+            ], $vectorMatches): [];             //$this->segmentRepository->semanticSearch($tenantId, $query, (string) $profile->id);
 
         usort($results, static fn (array $left, array $right): int => ($right['score'] <=> $left['score']));
 
@@ -54,5 +58,14 @@ class SemanticSearchService
             'retrievalModelProfileId' => (string) $profile->id,
             'results' => $results,
         ];
+    }
+
+    private function normalizeVectorMatches(array $response): array
+    {
+        if (isset($response['result']) && is_array($response['result'])) {
+            return array_values(array_filter($response['result'], 'is_array'));
+        }
+
+        return array_values(array_filter($response, 'is_array'));
     }
 }

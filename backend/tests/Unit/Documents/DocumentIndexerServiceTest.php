@@ -51,13 +51,52 @@ class DocumentIndexerServiceTest extends TestCase
             'content_text' => 'AssistDoc rende il contenuto semanticamente ricercabile.',
         ]]);
 
-        $results = $qdrant->search('documents', $queryVector, [
-            'must' => [
-                ['key' => 'document_id', 'match' => ['value' => '11']],
-            ],
+        $results = $qdrant->search($queryVector, 5, null, [
+            ['field' => 'document_id', 'operator' => '=', 'value' => '11'],
         ]);
 
-        $this->assertCount(1, $results);
+        $this->assertCount(1, $results['result'] ?? $results);
+    }
+
+    #[Test]
+    public function it_keeps_distinct_vector_points_for_different_chunking_profiles(): void
+    {
+        $document = new Document();
+        $document->forceFill([
+            'id' => 21,
+            'tenant_id' => 1,
+            'filename' => 'manuale.txt',
+        ]);
+
+        $profile = RetrievalModelProfile::query()->where('slug', config('rag.default_retrieval_profile.slug'))->firstOrFail();
+        $smallChunkingProfile = ChunkingProfile::query()->where('slug', 'small')->firstOrFail();
+        $largeChunkingProfile = ChunkingProfile::query()->where('slug', 'large')->firstOrFail();
+        $service = app(DocumentIndexerService::class);
+        $qdrant = app(QdrantService::class);
+
+        $service->indexSegments($document, [[
+            'id' => 100,
+            'segment_index' => 0,
+            'source_label' => 'Segmento 1',
+            'content_text' => 'Contenuto con profilo small.',
+            'retrieval_model_profile_id' => $profile->id,
+            'chunking_profile_id' => $smallChunkingProfile->id,
+        ]], $profile);
+        $service->indexSegments($document, [[
+            'id' => 101,
+            'segment_index' => 0,
+            'source_label' => 'Segmento 1',
+            'content_text' => 'Contenuto con profilo large.',
+            'retrieval_model_profile_id' => $profile->id,
+            'chunking_profile_id' => $largeChunkingProfile->id,
+        ]], $profile);
+
+        $results = $qdrant->search(app(EmbeddingService::class)->embed('Contenuto'), 10, null, [
+            ['field' => 'document_id', 'operator' => '=', 'value' => '21'],
+            ['field' => 'retrieval_model_profile_id', 'operator' => '=', 'value' => (string) $profile->id],
+        ]);
+
+        $this->assertCount(2, $results['result'] ?? $results);
     }
 
     #[Test]

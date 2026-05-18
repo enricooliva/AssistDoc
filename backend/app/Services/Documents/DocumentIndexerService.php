@@ -55,7 +55,7 @@ class DocumentIndexerService
                 'segment_index' => $index,
                 'content_text' => $trimmed,
                 'token_count' => $chunk['token_count'],
-                'source_label' => sprintf('Segmento %d', $index + 1),
+                'source_label' => sprintf('Segmento %d %d %d', $index + 1, $chunkingProfile->chunk_size_tokens, $chunkingProfile->overlap_tokens),
                 'searchable' => false,
                 'activated_at' => null,
                 'retired_at' => null,
@@ -69,7 +69,7 @@ class DocumentIndexerService
         Document $document,
         iterable $segments,
         ?RetrievalModelProfile $profile = null,
-        string $collection = 'documents'
+        ?string $collection = null
     ): int
     {
         $indexed = 0;
@@ -88,7 +88,18 @@ class DocumentIndexerService
             $segmentId = $segment instanceof DocumentSegment ? $segment->id : ($segment['id'] ?? null);
             $segmentIndex = $segment instanceof DocumentSegment ? $segment->segment_index : $segment['segment_index'];
             $sourceLabel = $segment instanceof DocumentSegment ? $segment->source_label : $segment['source_label'];
-            $pointId = $this->qdrantService->generatePointId('document', (int) $document->id, 'segment', (int) $segmentIndex);
+            $retrievalModelProfileId = $segment instanceof DocumentSegment
+                ? ($segment->retrieval_model_profile_id ? (string) $segment->retrieval_model_profile_id : ($profile?->id ? (string) $profile->id : 'default'))
+                : (($segment['retrieval_model_profile_id'] ?? null) ? (string) $segment['retrieval_model_profile_id'] : ($profile?->id ? (string) $profile->id : 'default'));
+            $chunkingProfileId = $segment instanceof DocumentSegment
+                ? ($segment->chunking_profile_id ? (string) $segment->chunking_profile_id : 'default')
+                : (($segment['chunking_profile_id'] ?? null) ? (string) $segment['chunking_profile_id'] : 'default');
+            $pointId = $this->qdrantService->generatePointId(
+                'document',
+                (int) $document->id,
+                sprintf('segment:%s:%s', $retrievalModelProfileId, $chunkingProfileId),
+                (int) $segmentIndex
+            );
 
             $this->qdrantService->upsert([
                 [
@@ -105,14 +116,14 @@ class DocumentIndexerService
                         'content_text' => $content,
                         'embedding_model' => $this->embeddingService->getEmbeddingModel($profile),
                         'retrieval_model_profile' => $profile?->slug ?? 'default',
-                        'retrieval_model_profile_id' => $profile?->id ? (string) $profile->id : null,
-                        'chunking_profile_id' => $segment instanceof DocumentSegment ? ($segment->chunking_profile_id ? (string) $segment->chunking_profile_id : null) : (($segment['chunking_profile_id'] ?? null) ? (string) $segment['chunking_profile_id'] : null),
+                        'retrieval_model_profile_id' => $retrievalModelProfileId !== 'default' ? $retrievalModelProfileId : null,
+                        'chunking_profile_id' => $chunkingProfileId !== 'default' ? $chunkingProfileId : null,
                         'embedding_dimensions' => $this->embeddingService->getEmbeddingDimensions($profile),
                         'token_count' => $segment instanceof DocumentSegment ? $segment->token_count : ($segment['token_count'] ?? null),
                         'document_status' => 'ready',
                     ],
                 ],
-            ], $collection);
+            ], $collection, $this->embeddingService->getEmbeddingDimensions($profile));
 
             $indexed++;
         }
@@ -120,16 +131,42 @@ class DocumentIndexerService
         return $indexed;
     }
 
-    public function deleteDocumentVectors(Document $document, string $collection = 'documents'): void
+    public function deleteDocumentVectors(
+        Document $document,
+        ?string $retrievalModelProfileId = null,
+        ?string $chunkingProfileId = null,
+        ?string $collection = null,
+        ?int $vectorSize = null
+    ): void
     {
-        $this->qdrantService->deleteByFilter([
-            'must' => [
-                [
-                    'key' => 'document_id',
-                    'match' => ['value' => (string) $document->id],
-                ],
+        $must = [
+            [
+                'key' => 'tenant_id',
+                'match' => ['value' => (string) $document->tenant_id],
             ],
-        ], $collection);
+            [
+                'key' => 'document_id',
+                'match' => ['value' => (string) $document->id],
+            ],
+        ];
+
+        if ($retrievalModelProfileId !== null) {
+            $must[] = [
+                'key' => 'retrieval_model_profile_id',
+                'match' => ['value' => $retrievalModelProfileId],
+            ];
+        }
+
+        if ($chunkingProfileId !== null) {
+            $must[] = [
+                'key' => 'chunking_profile_id',
+                'match' => ['value' => $chunkingProfileId],
+            ];
+        }
+
+        $this->qdrantService->deleteByFilter([
+            'must' => $must,
+        ], $collection, $vectorSize);
     }
 
     private function normalizeDocumentText(string $text): string

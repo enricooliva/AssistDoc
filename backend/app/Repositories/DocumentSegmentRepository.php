@@ -7,11 +7,18 @@ use App\Models\DocumentSegment;
 
 class DocumentSegmentRepository
 {
-    public function replaceForDocument(Document $document, array $segments): array
+    public function replaceForDocument(
+        Document $document,
+        array $segments,
+        ?string $retrievalModelProfileId = null,
+        ?string $chunkingProfileId = null,
+    ): array
     {
         DocumentSegment::query()
             ->where('tenant_id', $document->tenant_id)
             ->where('document_id', $document->id)
+            ->when($retrievalModelProfileId !== null, fn ($query) => $query->where('retrieval_model_profile_id', $retrievalModelProfileId))
+            ->when($chunkingProfileId !== null, fn ($query) => $query->where('chunking_profile_id', $chunkingProfileId))
             ->whereNull('retired_at')
             ->delete();
 
@@ -23,11 +30,17 @@ class DocumentSegmentRepository
         return $created;
     }
 
-    public function markSearchable(Document $document): void
+    public function markSearchable(
+        Document $document,
+        ?string $retrievalModelProfileId = null,
+        ?string $chunkingProfileId = null,
+    ): void
     {
         DocumentSegment::query()
             ->where('tenant_id', $document->tenant_id)
             ->where('document_id', $document->id)
+            ->when($retrievalModelProfileId !== null, fn ($query) => $query->where('retrieval_model_profile_id', $retrievalModelProfileId))
+            ->when($chunkingProfileId !== null, fn ($query) => $query->where('chunking_profile_id', $chunkingProfileId))
             ->whereNull('retired_at')
             ->update([
                 'searchable' => true,
@@ -35,11 +48,17 @@ class DocumentSegmentRepository
             ]);
     }
 
-    public function deleteForDocument(Document $document): void
+    public function deleteForDocument(
+        Document $document,
+        ?string $retrievalModelProfileId = null,
+        ?string $chunkingProfileId = null,
+    ): void
     {
         DocumentSegment::query()
             ->where('tenant_id', $document->tenant_id)
             ->where('document_id', $document->id)
+            ->when($retrievalModelProfileId !== null, fn ($query) => $query->where('retrieval_model_profile_id', $retrievalModelProfileId))
+            ->when($chunkingProfileId !== null, fn ($query) => $query->where('chunking_profile_id', $chunkingProfileId))
             ->update([
                 'searchable' => false,
                 'retired_at' => now(),

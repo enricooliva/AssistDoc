@@ -1,113 +1,96 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, ViewChild, computed } from '@angular/core';
+import { Component, OnInit, ViewChild, TemplateRef, ElementRef } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
-import { FieldType, FieldTypeConfig, FormlyModule } from '@ngx-formly/core';
+import { FieldType, FormlyFieldConfig, FormlyConfig, FieldTypeConfig, FormlyModule } from '@ngx-formly/core';
 
 @Component({
-  selector: 'app-input-file',
-  standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormlyModule],
-  template: `
-    <div class="document-file">
-      <input
-        #fileInput
-        type="file"
-        hidden="true"
-        class="visually-hidden"
-        [attr.accept]="props.accept || null"
-        (change)="onFileChanged($event)"
-      />
-
-      <div class="document-file__group">
-        <div
-          class="document-file__display"
-          [class.document-file__display--empty]="!formControl.value"
-          [class.is-invalid]="showError"
-          [formlyAttributes]="field"
-        >
-          <span class="document-file__name">
-            {{ fileName() || props.placeholder || 'Seleziona un documento' }}
-          </span>
-        </div>
-        <button class="btn btn-outline-primary" type="button" (click)="openDialogSelectFile()" [disabled]="props.disabled">
-          {{ formControl.value ? 'Sostituisci file' : 'Scegli file' }}
-        </button>
-        <button class="btn btn-outline-secondary" type="button" (click)="reset()" [disabled]="props.disabled || !formControl.value">
-          Rimuovi
-        </button>
-      </div>
-
-      <small *ngIf="props.description" class="form-text text-muted">{{ props.description }}</small>
-      <div *ngIf="showError" class="invalid-feedback d-block">
-        {{ props.required ? 'Seleziona un documento prima di continuare.' : 'Documento non valido.' }}
-      </div>
-    </div>
+    selector: 'app-input-file',
+    imports: [CommonModule, ReactiveFormsModule, FormlyModule],
+    template: `
+  <div class="input-group" *ngIf="field" placement="top" ngbTooltip="{{ to.tooltip ? to.tooltip.content : null }}">
+  <button class="btn btn-outline-secondary bi bi-folder  d-flex align-items-center" type="button" (click)="openDialogSelectFile()"></button>
+  <input type="input" class="form-control" [formControl]="formControl" [formlyAttributes]="field">
+  <button class="btn btn-outline-secondary bi bi-trash" type="button" (click)="reset()"></button>
+  </div>
+  <input #fileInput type="file" [accept]="props.accept" (change)="onFileChanged($event)" style="display: none">
   `,
-  styles: [`
-    .document-file {
-      display: grid;
-      gap: 8px;
-    }
-
-    .document-file__group {
-      display: grid;
-      grid-template-columns: 1fr auto auto;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .document-file__display {
-      min-height: calc(1.5em + 0.75rem + 2px);
-      padding: 0.375rem 0.75rem;
-      border: 1px solid #ced4da;
-      border-radius: 0.375rem;
-      background: #fff;
-      display: flex;
-      align-items: center;
-    }
-
-    .document-file__display--empty {
-      color: #6c757d;
-    }
-
-    .document-file__name {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  `],
+    standalone: true
 })
-export class InputFileComponent extends FieldType<FieldTypeConfig> {
-  @ViewChild('fileInput', { static: true }) public fileInput!: ElementRef<HTMLInputElement>;
+export class InputFileComponent extends FieldType<FieldTypeConfig>  implements OnInit{
 
-  readonly fileName = computed(() => {
-    const currentValue = this.formControl.value;
-    if (currentValue instanceof File) {
-      return currentValue.name;
+  inputField: FormlyFieldConfig = null;
+    
+  @ViewChild('fileInput', { static: true }) public fileInput: ElementRef;  
+
+  constructor() {
+    super();         
+  }
+
+  ngOnInit() {        
+      if (!this.props.accept) {
+        this.props.accept = 'application/pdf';        
+      }
+             
+      this.field.props.keyup = (field, event: KeyboardEvent) => {
+        if (event.key == "F2") {
+            this.openDialogSelectFile();
+        }
+      };          
+      this.inputField = this.field;                   
+  }
+
+  onFileChanged(event) {
+    let selFile = event.target.files[0] as File;
+    if (selFile){
+      this.inputField.formControl.setValue(selFile.name);      
+      //let $img = this.fileInput.nativeElement.files[0];      
+      this.props.onSelected(...[selFile, this.field])
+
+    }
+  }
+
+  reset() {    
+    if (!this.props.disabled){
+      this.inputField.formControl.markAsTouched();
+      this.inputField.formControl.setValue(null);
+      this.inputField.formControl.updateValueAndValidity();    
+      this.inputField.formControl.markAsDirty();   
+
+      this.fileInput.nativeElement.value = "";
+      this.props.onSelected(...[null, this.field])                 
+    }
+  }
+
+    
+  onPopulate(field: FormlyFieldConfig) {
+
+    if (!field.props.accept) {
+      field.props.accept = 'application/pdf';
     }
 
-    return typeof currentValue === 'string' ? currentValue : '';
-  });
+    // //field.wrappers= ['form-field','addons']; //.concat(this.field.wrappers),    
+    // field.props.addonRight = {
+    //   class: 'btn btn-outline-secondary oi oi-delete d-flex align-items-center',
+    //   onClick: (to, fieldType, $event) => this.reset(),      
+    // };    
 
-  onFileChanged(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const selectedFile = input.files?.[0] ?? null;
+    // field.props.addonLeft= {
+    //   class: 'btn btn-outline-secondary oi oi-folder d-flex align-items-center',
+    //   onClick: (to, fieldType, $event) => { 
+    //     this.openDialogSelectFile();
+    //   }
+    // };      
 
-    this.formControl.setValue(selectedFile);
-    this.formControl.markAsDirty();
-    this.formControl.markAsTouched();
   }
 
-  reset(): void {
-    this.formControl.setValue(null);
-    this.formControl.markAsDirty();
-    this.formControl.markAsTouched();
-    this.fileInput.nativeElement.value = '';
-  }
-
-  openDialogSelectFile(): void {
-    if (!this.props.disabled) {
-      this.fileInput.nativeElement.click();
+  protected openDialogSelectFile(){
+    if (!this.props.disabled){
+      if (!this.model.filename){
+        this.fileInput.nativeElement.value = null;
+      }
+      this.fileInput.nativeElement.click(); 
     }
   }
+
+  
 }
