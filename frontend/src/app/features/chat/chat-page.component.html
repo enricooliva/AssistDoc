@@ -6,7 +6,7 @@
     <div class="chat-layout__history">
       <button
         *ngFor="let conversation of conversations()"
-        class="btn btn-outline-primary chat-layout__history-item"
+        class="btn btn-outline-secondary chat-layout__history-item"
         type="button"
         [class.chat-layout__history-item--active]="conversation.id === activeConversationId()"
         (click)="openConversation(conversation.id)"
@@ -39,6 +39,15 @@
 
     <p *ngIf="feedback()" class="chat-layout__feedback">{{ feedback() }}</p>
 
+    <section class="chat-layout__filters">
+      <formly-form
+        [form]="filtersForm"
+        [fields]="filterFields()"
+        [model]="composerModel()"
+        (modelChange)="onComposerModelChange($event)"
+      />
+    </section>
+
     <div class="chat-layout__messages">
       <p *ngIf="loading()" class="chat-layout__empty">Caricamento conversazione in corso...</p>
       <p *ngIf="!loading() && !messages().length" class="chat-layout__empty">
@@ -68,65 +77,13 @@
       </article>
     </div>
 
-    <form class="chat-layout__composer" (ngSubmit)="submit()">
-      <div class="d-grid gap-3">
-        <div class="d-grid gap-2">
-          <label for="chunkingProfileId">Profilo chunk</label>
-          <select
-            id="chunkingProfileId"
-            class="form-select"
-            [ngModel]="selectedChunkingProfileId() ?? ''"
-            (ngModelChange)="selectedChunkingProfileId.set($event || null)"
-            name="chunkingProfileId"
-            [disabled]="submitting() || isArchivedConversation()"
-          >
-            <option value="">Tutti</option>
-            <option *ngFor="let profile of availableChunkingProfiles()" [value]="profile.id">
-              {{ profile.name }}
-            </option>
-          </select>
-        </div>
-
-        <div class="d-grid gap-2" *ngIf="availableTags().length">
-          <button
-            type="button"
-            class="btn btn-outline-secondary d-flex align-items-center justify-content-between text-start"
-            (click)="toggleTagsPanel()"
-            [attr.aria-expanded]="tagsPanelOpen()"
-          >
-            <span>Tag documento</span>
-            <span>{{ tagsPanelOpen() ? 'Nascondi' : 'Mostra' }}</span>
-          </button>
-
-          <div *ngIf="tagsPanelOpen()" class="d-flex flex-wrap gap-2">
-            <label
-              *ngFor="let tag of availableTags()"
-              class="btn rounded-pill d-inline-flex align-items-center gap-2"
-              [class.btn-primary]="isTagSelected(tag)"
-              [class.btn-outline-secondary]="!isTagSelected(tag)"
-            >
-              <input
-                class="form-check-input m-0"
-                type="checkbox"
-                [checked]="isTagSelected(tag)"
-                (change)="setTagSelected(tag, $any($event.target).checked)"
-                [disabled]="submitting() || isArchivedConversation()"
-              />
-              {{ tag }}
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <textarea
-        class="form-control"
-        [ngModel]="prompt()"
-        (ngModelChange)="prompt.set($event)"
-        name="prompt"
-        rows="3"
-        placeholder="Fai una domanda sui documenti del tenant"
-        [disabled]="submitting() || isArchivedConversation()"
-      ></textarea>
+    <form class="chat-layout__composer" [formGroup]="composerForm" (ngSubmit)="submit()">
+      <formly-form
+        [form]="composerForm"
+        [fields]="composerFields()"
+        [model]="composerModel()"
+        (modelChange)="onComposerModelChange($event)"
+      />
       <button type="submit" class="btn btn-primary chat-layout__button-wide" [disabled]="submitting() || isArchivedConversation()">
         {{ submitting() ? 'Invio...' : 'Invia' }}
       </button>

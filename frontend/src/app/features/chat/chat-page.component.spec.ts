@@ -88,9 +88,11 @@ describe('ChatPageComponent', () => {
   });
 
   it('submits the trimmed prompt and clears the composer', async () => {
-    component.prompt.set(' Domanda sul tenant ');
-    component.selectedTags.set(['privacy']);
-    component.selectedChunkingProfileId.set('cp-small');
+    component.onComposerModelChange({
+      prompt: ' Domanda sul tenant ',
+      tags: ['privacy'],
+      chunkingProfileId: 'cp-small',
+    });
 
     await component.submit();
 
@@ -98,11 +100,15 @@ describe('ChatPageComponent', () => {
       tags: ['privacy'],
       chunkingProfileId: 'cp-small',
     });
-    expect(component.prompt()).toBe('');
+    expect(component.composerModel().prompt).toBe('');
   });
 
   it('shows an inline error when the prompt is blank', async () => {
-    component.prompt.set('   ');
+    component.onComposerModelChange({
+      prompt: '   ',
+      tags: [],
+      chunkingProfileId: null,
+    });
 
     await component.submit();
 
@@ -116,21 +122,13 @@ describe('ChatPageComponent', () => {
     expect(chatApi.archiveConversation).toHaveBeenCalledWith('conv-1');
   });
 
-  it('toggles tag filters from the composer', () => {
-    component.toggleTag('privacy');
-    expect(component.selectedTags()).toEqual(['privacy']);
+  it('tracks composer model changes for tag filters', () => {
+    component.onComposerModelChange({
+      prompt: '',
+      tags: ['privacy', 'tenant'],
+      chunkingProfileId: null,
+    });
 
-    component.toggleTag('privacy');
-    expect(component.selectedTags()).toEqual([]);
-  });
-
-  it('opens and closes the collapsible tag filter panel', () => {
-    expect(component.tagsPanelOpen()).toBeFalse();
-
-    component.toggleTagsPanel();
-    expect(component.tagsPanelOpen()).toBeTrue();
-
-    component.toggleTagsPanel();
-    expect(component.tagsPanelOpen()).toBeFalse();
+    expect(component.composerModel().tags).toEqual(['privacy', 'tenant']);
   });
 });

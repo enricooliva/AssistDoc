@@ -1,28 +1,38 @@
+import { CommonModule } from '@angular/common';
 import { Component, ViewChild, ViewContainerRef } from '@angular/core';
 import { FieldWrapper } from '@ngx-formly/core';
 
 @Component({
     selector: 'formly-wrapper-accordion',
-    template: `  
+    imports: [CommonModule],
+    template: `
     <div class="card">
       <h4 class="card-header">
-        {{ to.label }}
-        <button class="btn btn-sm btn-link float-end" type="button" (click)="isCollapsed = !isCollapsed" [attr.aria-expanded]="!isCollapsed" aria-controls="collapseExample">         
-          <span *ngIf="isCollapsed" class="oi oi-chevron-top"></span>
-          <span *ngIf="!isCollapsed" class="oi oi-chevron-bottom"></span>
+         <span class="fs-6 mb-0">{{ to.label }}</span>
+        <button
+          class="btn btn-sm btn-link float-end"
+          type="button"
+          (click)="isCollapsed = !isCollapsed"
+          [attr.aria-expanded]="!isCollapsed"
+          [attr.aria-controls]="collapseId"
+        >
+          {{ isCollapsed ? 'Mostra' : 'Nascondi' }}
         </button>              
       </h4>
-      <div id="collapseExample" [ngbCollapse]="isCollapsed">
+      <div [id]="collapseId" [hidden]="isCollapsed">
           <div class="card-body">
             <ng-container #fieldComponent></ng-container>
           </div>
       </div>
     </div>  
   `,
-    standalone: false
+    styles: [`
+    `],
+    standalone: true
 })
 export class AccordionWrapperComponent extends FieldWrapper {
-  public isCollapsed = false;
+  public readonly collapseId = `accordion-${Math.random().toString(36).slice(2)}`;
+  public isCollapsed = this.props.collapsed ?? true;
   @ViewChild('fieldComponent', { read: ViewContainerRef, static: true }) fieldComponent: ViewContainerRef;
 }
 

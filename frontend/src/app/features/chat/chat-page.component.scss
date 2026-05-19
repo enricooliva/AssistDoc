@@ -40,8 +40,8 @@
 
 .chat-layout__history-item--active {
   color: #fff;
-  background-color: #0d6efd;
-  border-color: #0d6efd;
+  background-color: #6c757d;;
+  border-color:#6c757d;
 }
 
 .chat-layout__thread {
@@ -95,6 +95,10 @@
   padding-top: 16px;
 }
 
+.chat-layout__filters {
+  margin: 20px 20px 0;
+}
+
 .chat-layout__messages {
   padding: 20px;
   display: flex;
@@ -145,6 +149,51 @@
 .chat-layout__composer textarea {
   resize: none;
   min-height: 92px;
+}
+
+.chat-layout__filters .card,
+.chat-layout__composer .card {
+  border-color: #d7dfe8;
+}
+
+.chat-layout__filters .card {
+  background: linear-gradient(180deg, #fbfcfe 0%, #f6f8fb 100%);
+}
+
+.chat-layout__filters .card-header,
+.chat-layout__composer .card-header {
+  background: #f8fafc;
+  color: #52606d;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.chat-layout__filters .card-header {
+  font-size: 1rem;
+  padding: 12px 14px;
+}
+
+.chat-layout__filters .card-header .btn {
+  font-size: 0.85rem;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.chat-layout__filters-description {
+  margin: 0;
+  color: #5d6b79;
+  font-size: 0.9rem;
+}
+
+.chat-layout__filters .card-body,
+.chat-layout__composer .card-body {
+  display: grid;
+  gap: 8px;
+}
+
+.chat-layout__filters .form-check,
+.chat-layout__composer .form-check {
+  margin-bottom: 8px;
 }
 
 .chat-layout__citations {
