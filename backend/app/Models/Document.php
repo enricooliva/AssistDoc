@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Document extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     public $timestamps = false;
 
@@ -29,18 +30,26 @@ class Document extends Model
         'uploaded_at',
         'last_status_at',
         'indexed_at',
+        'deleted_at',
+        'deleted_by_user_id',
     ];
 
     protected $casts = [
         'uploaded_at' => 'datetime',
         'last_status_at' => 'datetime',
         'indexed_at' => 'datetime',
+        'deleted_at' => 'datetime',
         'tags' => 'array',
     ];
 
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by_user_id');
+    }
+
+    public function deleter(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deleted_by_user_id');
     }
 
     public function activeRetrievalModelProfile(): BelongsTo

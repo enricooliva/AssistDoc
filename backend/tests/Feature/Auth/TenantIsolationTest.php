@@ -51,6 +51,36 @@ class TenantIsolationTest extends TestCase
     }
 
     #[Test]
+    public function it_does_not_include_documents_from_another_tenant_in_the_browse_list(): void
+    {
+        $tenantB = Tenant::query()->where('slug', 'tenant-b')->firstOrFail();
+        $userB = User::query()->where('email', 'viewer-b@assistdoc.local')->firstOrFail();
+        $foreignDocument = Document::query()->create([
+            'tenant_id' => $tenantB->id,
+            'uploaded_by_user_id' => $userB->id,
+            'filename' => 'tenant-b-list.txt',
+            'media_type' => 'text/plain',
+            'storage_path' => 'private/tenant-b-list.txt',
+            'size_bytes' => 1000,
+            'status' => 'indexed',
+            'uploaded_at' => now(),
+            'last_status_at' => now(),
+            'indexed_at' => now(),
+        ]);
+
+        $viewerToken = (string) $this->postJson('/api/v1/auth/login', [
+            'email' => 'viewer@assistdoc.local',
+            'password' => 'password123',
+        ])->json('token');
+
+        $response = $this->withToken($viewerToken)
+            ->getJson('/api/v1/documents')
+            ->assertOk();
+
+        $this->assertSame(0, collect($response->json('items'))->where('filename', $foreignDocument->filename)->count());
+    }
+
+    #[Test]
     public function it_does_not_expose_chat_conversations_from_another_tenant(): void
     {
         $tenantB = Tenant::query()->where('slug', 'tenant-b')->firstOrFail();

@@ -123,6 +123,28 @@ class ConversationShowTest extends TestCase
         ]);
     }
 
+    #[Test]
+    public function it_hides_soft_deleted_conversations_from_the_thread_view(): void
+    {
+        $viewer = User::query()->where('email', 'viewer@assistdoc.local')->firstOrFail();
+        $conversation = ChatConversation::query()->create([
+            'tenant_id' => $viewer->tenant_id,
+            'user_id' => $viewer->id,
+            'title' => 'Eliminata',
+            'status' => 'active',
+            'last_message_at' => now(),
+            'deleted_at' => now(),
+            'deleted_by_user_id' => $viewer->id,
+        ]);
+
+        $token = $this->login('viewer@assistdoc.local');
+
+        $this->withToken($token)
+            ->getJson('/api/v1/chat/conversations/'.$conversation->id)
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'NOT_FOUND');
+    }
+
     private function login(string $email): string
     {
         return (string) $this->postJson('/api/v1/auth/login', [

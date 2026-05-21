@@ -57,6 +57,15 @@ describe('AppShellComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Admin Demo');
   });
 
+  it('collapses and expands the left panel', () => {
+    const toggleButton = fixture.nativeElement.querySelector('.shell__toggle') as HTMLButtonElement;
+
+    toggleButton.click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.shell')?.classList.contains('shell--collapsed')).toBeTrue();
+  });
+
   it('signs out and redirects to sign-in', async () => {
     await component.signOut();
 

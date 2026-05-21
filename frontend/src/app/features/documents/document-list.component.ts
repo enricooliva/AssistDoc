@@ -14,48 +14,79 @@ import { DocumentStatusBadgeComponent } from './document-status-badge.component'
       <div class="documents-card__header">
         <div>
           <h2>Documenti del tenant</h2>
-          <p>Monitoraggio dello stato di caricamento, segmentazione e indicizzazione.</p>
+          <p>Consulta i documenti del tenant con tag, uploader e paginazione, senza includere i record eliminati.</p>
         </div>
         <button class="btn btn-outline-secondary" type="button" (click)="refresh()" [disabled]="api.loading()">
           Aggiorna
         </button>
       </div>
 
-      <p *ngIf="api.loading()" class="documents-card__info">Aggiornamento elenco documenti in corso...</p>
+      <p *ngIf="api.loading()" class="documents-card__info">Caricamento elenco documenti in corso...</p>
       <p *ngIf="api.error()" class="documents-card__error">{{ api.error() }}</p>
       <p *ngIf="!api.loading() && documents().length === 0" class="documents-card__info">
         Nessun documento disponibile per questo tenant.
       </p>
 
-      <article *ngFor="let document of documents()" class="document-row">
-        <div class="document-row__meta">
-          <div class="document-row__title">
-            <strong>{{ document.filename }}</strong>
-            <app-document-status-badge [status]="document.status" />
-          </div>
-          <div class="document-row__details">
-            <span>Caricato da {{ document.uploadedBy.fullName }}</span>
-            <span>{{ document.uploadedAt | date:'short' }}</span>
-            <span *ngIf="document.searchableSegmentsCount !== undefined">
-              Segmenti pronti: {{ document.searchableSegmentsCount }}/{{ document.segmentsCount ?? 0 }}
-            </span>
-            <span *ngIf="document.activeRetrievalModelProfile">Profilo modello: {{ document.activeRetrievalModelProfile.name }}</span>
-            <span *ngIf="document.activeChunkingProfile">Segmentazione: {{ document.activeChunkingProfile.name }}</span>
-          </div>
-          <p *ngIf="document.failureReason" class="document-row__failure">
-            {{ document.failureReason }}
-          </p>
-        </div>
+      <div *ngIf="documents().length > 0" class="document-list">
+        <article *ngFor="let document of documents()" class="document-row">
+          <div class="document-row__meta">
+            <div class="document-row__title">
+              <strong>{{ document.filename }}</strong>
+              <app-document-status-badge [status]="document.status" />
+            </div>
 
-        <button
-          *ngIf="canRetry(document)"
-          class="btn btn-sm btn-outline-primary"
-          type="button"
-          (click)="retry(document.id)"
-        >
-          Riprova
+            <div class="document-row__details">
+              <span>Caricato da {{ document.uploadedBy.fullName }}</span>
+              <span>{{ document.uploadedAt | date:'short' }}</span>
+              <span>Tag: {{ renderTags(document.tags) }}</span>
+              <span *ngIf="document.deletedAt">Eliminato il {{ document.deletedAt | date:'short' }}</span>
+            </div>
+
+            <p *ngIf="document.failureReason" class="document-row__failure">
+              {{ document.failureReason }}
+            </p>
+
+            <div *ngIf="pendingDeleteId() === document.id" class="document-row__confirm">
+              <p>La rimozione sarà una soft delete: il documento scomparirà dall'elenco standard ma resterà tracciabile.</p>
+              <div class="document-row__actions">
+                <button
+                  class="btn btn-sm btn-danger"
+                  type="button"
+                  (click)="confirmDelete(document.id)"
+                  [disabled]="api.deletingDocumentId() === document.id"
+                >
+                  Conferma eliminazione
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" type="button" (click)="cancelDelete()">
+                  Annulla
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="document-row__actions">
+            <button
+              *ngIf="canDelete() && pendingDeleteId() !== document.id"
+              class="btn btn-sm btn-outline-danger"
+              type="button"
+              (click)="requestDelete(document)"
+              [disabled]="api.deletingDocumentId() !== null"
+            >
+              Elimina
+            </button>
+          </div>
+        </article>
+      </div>
+
+      <div class="documents-card__pagination" *ngIf="documents().length > 0">
+        <button class="btn btn-outline-secondary btn-sm" type="button" (click)="previousPage()" [disabled]="!hasPreviousPage() || api.loading()">
+          Precedente
         </button>
-      </article>
+        <span>Pagina {{ api.page() }} di {{ totalPages() }}</span>
+        <button class="btn btn-outline-secondary btn-sm" type="button" (click)="nextPage()" [disabled]="!hasNextPage() || api.loading()">
+          Successiva
+        </button>
+      </div>
     </section>
   `,
   styles: [`
@@ -91,12 +122,17 @@ import { DocumentStatusBadgeComponent } from './document-status-badge.component'
       color: #b42318;
     }
 
+    .document-list {
+      display: grid;
+      gap: 12px;
+    }
+
     .document-row {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
       gap: 16px;
-      padding-top: 16px;
+      padding: 16px 0 0;
       border-top: 1px solid #edf2f7;
     }
 
@@ -108,6 +144,7 @@ import { DocumentStatusBadgeComponent } from './document-status-badge.component'
     .document-row__meta {
       display: grid;
       gap: 8px;
+      flex: 1;
     }
 
     .document-row__title {
@@ -129,32 +166,113 @@ import { DocumentStatusBadgeComponent } from './document-status-badge.component'
       margin: 0;
       color: #b42318;
     }
+
+    .document-row__confirm {
+      border: 1px solid #f3c7c7;
+      background: #fff7f7;
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .document-row__confirm p {
+      margin: 0;
+      color: #8a1f1f;
+    }
+
+    .document-row__actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    .documents-card__pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      border-top: 1px solid #edf2f7;
+      padding-top: 14px;
+      color: #52606d;
+    }
   `],
 })
 export class DocumentListComponent implements OnInit {
   private readonly authService = inject(AuthService);
   readonly api = inject(DocumentApiService);
-  readonly retrying = signal<string | null>(null);
+  readonly pendingDeleteId = signal<string | null>(null);
   readonly documents = computed(() => this.api.documents());
 
   ngOnInit(): void {
     void this.refresh();
   }
 
+  canDelete(): boolean {
+    return this.authService.hasAnyRole(['super-admin', 'operator']);
+  }
+
   async refresh(): Promise<void> {
-    await this.api.loadDocuments();
+    const targetPage = this.api.page();
+    await this.api.loadDocuments(targetPage, this.api.perPage());
   }
 
-  canRetry(document: DocumentListItem): boolean {
-    return document.status === 'failed' && this.authService.hasAnyRole(['super-admin', 'operator']);
-  }
-
-  async retry(documentId: string): Promise<void> {
-    this.retrying.set(documentId);
-    try {
-      await this.api.retryDocument(documentId);
-    } finally {
-      this.retrying.set(null);
+  async nextPage(): Promise<void> {
+    if (!this.hasNextPage()) {
+      return;
     }
+
+    await this.api.loadDocuments(this.api.page() + 1, this.api.perPage());
+  }
+
+  async previousPage(): Promise<void> {
+    if (!this.hasPreviousPage()) {
+      return;
+    }
+
+    await this.api.loadDocuments(this.api.page() - 1, this.api.perPage());
+  }
+
+  requestDelete(document: DocumentListItem): void {
+    this.pendingDeleteId.set(document.id);
+  }
+
+  cancelDelete(): void {
+    this.pendingDeleteId.set(null);
+  }
+
+  async confirmDelete(documentId: string): Promise<void> {
+    try {
+      await this.api.deleteDocument(documentId);
+      this.pendingDeleteId.set(null);
+
+      if (this.api.documents().length === 0 && this.api.page() > 1) {
+        await this.api.loadDocuments(this.api.page() - 1, this.api.perPage());
+        return;
+      }
+
+      await this.api.loadDocuments(this.api.page(), this.api.perPage());
+    } catch {
+      this.pendingDeleteId.set(null);
+    }
+  }
+
+  hasPreviousPage(): boolean {
+    return this.api.page() > 1;
+  }
+
+  hasNextPage(): boolean {
+    return this.api.page() * this.api.perPage() < this.api.total();
+  }
+
+  totalPages(): number {
+    return Math.max(1, Math.ceil(this.api.total() / this.api.perPage()));
+  }
+
+  renderTags(tags: string[]): string {
+    return tags.length > 0 ? tags.join(', ') : 'Nessun tag';
   }
 }

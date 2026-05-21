@@ -1,9 +1,10 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { apiUrl } from '../../core/api/api-url';
 import {
   ChunkingProfile,
+  DocumentDeleteResponse,
   ChunkingProfileListResponse,
   DocumentListItem,
   DocumentListResponse,
@@ -17,20 +18,31 @@ export class DocumentApiService {
   private readonly http = inject(HttpClient);
 
   readonly documents = signal<DocumentListItem[]>([]);
+  readonly page = signal(1);
+  readonly perPage = signal(25);
+  readonly total = signal(0);
   readonly chunkingProfiles = signal<ChunkingProfile[]>([]);
   readonly loading = signal(false);
+  readonly deletingDocumentId = signal<string | null>(null);
   readonly error = signal('');
 
-  async loadDocuments(): Promise<void> {
+  async loadDocuments(page = this.page(), perPage = this.perPage()): Promise<void> {
     this.loading.set(true);
     this.error.set('');
 
     try {
       const response = await firstValueFrom(
-        this.http.get<DocumentListResponse>(apiUrl('/api/v1/documents')),
+        this.http.get<DocumentListResponse>(apiUrl('/api/v1/documents'), {
+          params: new HttpParams()
+            .set('page', String(page))
+            .set('perPage', String(perPage)),
+        }),
       );
 
       this.documents.set(response.items);
+      this.page.set(response.page);
+      this.perPage.set(response.perPage);
+      this.total.set(response.total);
     } catch (error) {
       this.error.set(this.extractError(error, 'Impossibile caricare i documenti.'));
       throw error;
@@ -105,6 +117,28 @@ export class DocumentApiService {
     return await firstValueFrom(
       this.http.get<PreparationRunDetail>(apiUrl(`/api/v1/documents/${documentId}/preparation-runs/${runId}`)),
     );
+  }
+
+  async deleteDocument(documentId: string): Promise<DocumentDeleteResponse> {
+    this.deletingDocumentId.set(documentId);
+    this.error.set('');
+
+    try {
+      const response = await firstValueFrom(
+        this.http.delete<DocumentDeleteResponse>(apiUrl(`/api/v1/documents/${documentId}`)),
+      );
+
+      this.documents.update((items) => items.filter((item) => item.id !== documentId));
+      this.total.update((current) => Math.max(0, current - 1));
+
+      return response;
+    } catch (error) {
+      const message = this.extractError(error, 'Eliminazione non riuscita.');
+      this.error.set(message);
+      throw new Error(message);
+    } finally {
+      this.deletingDocumentId.set(null);
+    }
   }
 
   private extractError(error: unknown, fallback: string): string {

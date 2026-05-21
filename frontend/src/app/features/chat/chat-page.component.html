@@ -3,16 +3,54 @@
     <button class="btn btn-primary chat-layout__button-wide" type="button" (click)="startConversation()" [disabled]="loading() || submitting()">
       Nuova chat
     </button>
-    <div class="chat-layout__history">
+    <div class="chat-layout__recent">
+      <div class="chat-layout__recent-title">Recenti</div>
+      <div class="chat-layout__history">
+        <div
+          *ngFor="let conversation of conversations()"
+          class="chat-layout__history-row"
+          [class.chat-layout__history-row--active]="conversation.id === activeConversationId()"
+        >
+          <button
+            class="chat-layout__history-item"
+            type="button"
+            [class.chat-layout__history-item--active]="conversation.id === activeConversationId()"
+            (click)="openConversation(conversation.id)"
+          >
+            <span class="chat-layout__history-title">{{ conversation.title }}</span>
+            <small *ngIf="conversation.status === 'archived'">Archiviata</small>
+          </button>
+          <button
+            type="button"
+            class="chat-layout__history-delete btn btn-link"
+            [disabled]="deletingConversationId() === conversation.id"
+            [attr.aria-label]="'Elimina conversazione ' + conversation.title"
+            [attr.title]="'Elimina conversazione ' + conversation.title"
+            (click)="deleteConversation(conversation.id, $event)"
+          >
+            <i class="bi bi-trash"></i>
+            <span class="visually-hidden">Elimina conversazione</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="chat-layout__pagination" *ngIf="conversationTotal() > 0">
       <button
-        *ngFor="let conversation of conversations()"
-        class="btn btn-outline-secondary chat-layout__history-item"
         type="button"
-        [class.chat-layout__history-item--active]="conversation.id === activeConversationId()"
-        (click)="openConversation(conversation.id)"
+        class="btn btn-outline-secondary btn-sm"
+        (click)="previousConversationPage()"
+        [disabled]="!hasPreviousConversationPage() || loading()"
       >
-        <span>{{ conversation.title }}</span>
-        <small *ngIf="conversation.status === 'archived'">Archiviata</small>
+        Precedenti
+      </button>
+      <small>Pag. {{ conversationPage() }}/{{ totalConversationPages() }}</small>
+      <button
+        type="button"
+        class="btn btn-outline-secondary btn-sm"
+        (click)="nextConversationPage()"
+        [disabled]="!hasNextConversationPage() || loading()"
+      >
+        Successive
       </button>
     </div>
   </aside>
@@ -24,14 +62,6 @@
         <p>Le risposte vengono generate solo da evidenze del tenant e mostrano citazioni verificabili.</p>
       </div>
       <div class="chat-layout__header-actions">
-        <button
-          *ngIf="activeConversation() && !isArchivedConversation()"
-          type="button"
-          class="btn btn-outline-secondary"
-          (click)="archiveConversation()"
-        >
-          Archivia
-        </button>
         <span *ngIf="submitting()" class="chat-layout__status">Sto cercando nei documenti del tenant...</span>
         <span *ngIf="isArchivedConversation()" class="chat-layout__status">Conversazione archiviata</span>
       </div>

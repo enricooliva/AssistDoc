@@ -2,29 +2,26 @@
 
 namespace App\Services\Documents;
 
+use App\Jobs\DeleteDocumentVectorsJob;
 use App\Models\Document;
 use App\Repositories\DocumentRepository;
+use App\Repositories\DocumentSegmentRepository;
 use App\Services\Audit\AuditService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\UploadedFile;
 
 class DocumentService
 {
     public function __construct(
         private readonly DocumentRepository $documentRepository,
+        private readonly DocumentSegmentRepository $documentSegmentRepository,
         private readonly AuditService $auditService,
     ) {
     }
 
-    public function list(string $tenantId): array
+    public function list(string $tenantId, int $page = 1, int $perPage = 25): array
     {
-        $items = $this->documentRepository->listForTenant($tenantId);
-
-        return [
-            'items' => $items,
-            'page' => 1,
-            'perPage' => 25,
-            'total' => count($items),
-        ];
+        return $this->documentRepository->paginateForTenant($tenantId, $page, $perPage);
     }
 
     public function create(string $tenantId, string $userId, array $payload): array
@@ -71,6 +68,63 @@ class DocumentService
     public function show(string $tenantId, string $documentId): ?array
     {
         return $this->documentRepository->find($tenantId, $documentId);
+    }
+
+    public function delete(string $tenantId, string $userId, string $documentId): array
+    {
+        $document = $this->documentRepository->findModelIncludingDeleted($tenantId, $documentId);
+
+        if (! $document) {
+            return [
+                'status' => 'not_found',
+                'documentId' => $documentId,
+            ];
+        }
+
+        if ($document->deleted_at !== null) {
+            return [
+                'status' => 'already_deleted',
+                'documentId' => $documentId,
+                'deletedAt' => $document->deleted_at?->toIso8601String(),
+            ];
+        }
+
+        $document = DB::transaction(function () use ($document, $tenantId, $userId): Document {
+            $document = $this->documentRepository->softDelete($document, $userId);
+            $this->documentSegmentRepository->deleteForDocument($document);
+            $this->auditService->record(
+                'document.deleted',
+                $tenantId,
+                $userId,
+                [
+                    'document_id' => (string) $document->id,
+                    'deleted_at' => $document->deleted_at?->toIso8601String(),
+                    'deleted_by_user_id' => $userId,
+                    'previous_status' => 'active',
+                ],
+                'success',
+                'document',
+                $document->id,
+            );
+
+            return $document;
+        });
+
+        DeleteDocumentVectorsJob::dispatch((string) $document->tenant_id, (string) $document->id);
+
+        return [
+            'documentId' => (string) $document->id,
+            'status' => 'deleted',
+            'deletedAt' => $document->deleted_at?->toIso8601String(),
+            'deletedBy' => $document->deleter ? [
+                'id' => (string) $document->deleter->id,
+                'fullName' => $document->deleter->name,
+            ] : [
+                'id' => $userId,
+                'fullName' => 'Utente non disponibile',
+            ],
+            'removedFromList' => true,
+        ];
     }
 
     public function retry(string $tenantId, string $userId, string $documentId): array

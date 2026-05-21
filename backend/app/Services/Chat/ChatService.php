@@ -10,6 +10,7 @@ use App\Repositories\MessageCitationRepository;
 use App\Services\AI\AiSearchService;
 use App\Services\Audit\AuditService;
 use App\Services\Search\SemanticSearchService;
+use Illuminate\Support\Facades\DB;
 
 class ChatService
 {
@@ -23,16 +24,9 @@ class ChatService
     ) {
     }
 
-    public function listConversations(string $tenantId, string $userId): array
+    public function listConversations(string $tenantId, string $userId, int $page = 1, int $perPage = 25): array
     {
-        $items = $this->conversationRepository->listForUser($tenantId, $userId);
-
-        return [
-            'items' => $items,
-            'page' => 1,
-            'perPage' => 25,
-            'total' => $this->conversationRepository->countForUser($tenantId, $userId),
-        ];
+        return $this->conversationRepository->paginateForUser($tenantId, $userId, $page, $perPage);
     }
 
     public function createConversation(string $tenantId, string $userId, ?string $title = null): array
@@ -76,6 +70,54 @@ class ChatService
         return ChatConversationData::fromModel($conversation)->toArray();
     }
 
+    public function deleteConversation(string $tenantId, string $userId, string $conversationId): array
+    {
+        $conversation = $this->conversationRepository->findForUserIncludingDeleted($tenantId, $userId, $conversationId);
+
+        if (! $conversation) {
+            return [
+                'status' => 'not_found',
+                'conversationId' => $conversationId,
+            ];
+        }
+
+        if ($conversation->deleted_at !== null) {
+            return [
+                'status' => 'already_deleted',
+                'conversationId' => $conversationId,
+                'deletedAt' => $conversation->deleted_at?->toIso8601String(),
+            ];
+        }
+
+        $conversation = DB::transaction(function () use ($conversation, $tenantId, $userId, $conversationId) {
+            $conversation = $this->conversationRepository->softDelete($conversation, $userId);
+
+            $this->auditService->record('chat.conversation_deleted', $tenantId, $userId, [
+                'conversation_id' => $conversationId,
+                'deleted_at' => $conversation->deleted_at?->toIso8601String(),
+                'deleted_by_user_id' => $userId,
+            ], 'success', 'chat_conversation', $conversationId);
+
+            return $conversation;
+        });
+
+        return [
+            'conversationId' => (string) $conversation->id,
+            'title' => $conversation->title,
+            'status' => $conversation->status,
+            'lastMessageAt' => $conversation->last_message_at?->toIso8601String(),
+            'deletedAt' => $conversation->deleted_at?->toIso8601String(),
+            'deletedBy' => $conversation->deletedBy ? [
+                'id' => (string) $conversation->deletedBy->id,
+                'fullName' => $conversation->deletedBy->name,
+            ] : [
+                'id' => $userId,
+                'fullName' => 'Utente non disponibile',
+            ],
+            'removedFromList' => true,
+        ];
+    }
+
     public function answerQuestion(
         string $tenantId,
         string $userId,
@@ -99,6 +141,10 @@ class ChatService
                     'message' => 'La conversazione è archiviata e non può ricevere nuovi messaggi.',
                 ],
             ];
+        }
+
+        if ($conversation->deleted_at !== null) {
+            return null;
         }
 
         if ($this->shouldGenerateTitle($conversation)) {

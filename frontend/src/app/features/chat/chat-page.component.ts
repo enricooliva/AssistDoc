@@ -47,9 +47,20 @@ export class ChatPageComponent implements OnInit {
   readonly activeConversation = this.chatApi.activeConversation;
   readonly activeConversationId = this.chatApi.activeConversationId;
   readonly isArchivedConversation = this.chatApi.isArchivedConversation;
+  readonly conversationPage = this.chatApi.page;
+  readonly conversationPerPage = this.chatApi.perPage;
+  readonly conversationTotal = this.chatApi.total;
+  readonly deletingConversationId = this.chatApi.deletingConversationId;
   readonly loading = this.chatApi.loading;
   readonly submitting = this.chatApi.submitting;
   readonly feedback = computed(() => this.inlineError() || this.chatApi.error());
+  readonly totalConversationPages = computed(() =>
+    Math.max(1, Math.ceil(this.conversationTotal() / this.conversationPerPage())),
+  );
+  readonly hasPreviousConversationPage = computed(() => this.conversationPage() > 1);
+  readonly hasNextConversationPage = computed(() =>
+    this.conversationPage() * this.conversationPerPage() < this.conversationTotal(),
+  );
   readonly filtersForm = new FormGroup({});
   readonly composerForm = new FormGroup({});
   readonly composerModel = signal<ChatComposerModel>({
@@ -158,20 +169,33 @@ export class ChatPageComponent implements OnInit {
     await this.chatApi.openConversation(conversationId);
   }
 
-  async archiveConversation(): Promise<void> {
-    const activeConversation = this.activeConversation();
-
-    if (!activeConversation) {
-      return;
-    }
+  async deleteConversation(conversationId: string, event?: Event): Promise<void> {
+    event?.preventDefault();
+    event?.stopPropagation();
 
     this.inlineError.set('');
 
     try {
-      await this.chatApi.archiveConversation(activeConversation.id);
+      await this.chatApi.deleteConversation(conversationId);
     } catch (error) {
-      this.inlineError.set(error instanceof Error ? error.message : 'Impossibile archiviare la conversazione.');
+      this.inlineError.set(error instanceof Error ? error.message : 'Impossibile eliminare la conversazione.');
     }
+  }
+
+  async previousConversationPage(): Promise<void> {
+    if (!this.hasPreviousConversationPage()) {
+      return;
+    }
+
+    await this.chatApi.loadConversations(this.conversationPage() - 1, this.conversationPerPage());
+  }
+
+  async nextConversationPage(): Promise<void> {
+    if (!this.hasNextConversationPage()) {
+      return;
+    }
+
+    await this.chatApi.loadConversations(this.conversationPage() + 1, this.conversationPerPage());
   }
 
   async submit(): Promise<void> {

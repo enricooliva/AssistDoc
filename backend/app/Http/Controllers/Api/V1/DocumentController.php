@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\DocumentIndexRequest;
 use App\Http\Requests\DocumentPreparationRunRequest;
 use App\Http\Requests\DocumentRetryRequest;
 use App\Http\Requests\DocumentUploadRequest;
@@ -20,11 +21,17 @@ class DocumentController extends Controller
         private readonly ChunkPreparationRunRepository $chunkPreparationRunRepository,
     ) {}
 
-    public function index(Request $request): JsonResponse
+    public function index(DocumentIndexRequest $request): JsonResponse
     {
         $user = $request->attributes->get('auth_user');
 
-        return response()->json($this->documentService->list($user['tenant_id']));
+        return response()->json(
+            $this->documentService->list(
+                $user['tenant_id'],
+                (int) $request->validated('page', 1),
+                (int) $request->validated('perPage', 25),
+            )
+        );
     }
 
     public function store(DocumentUploadRequest $request): JsonResponse
@@ -53,6 +60,32 @@ class DocumentController extends Controller
         }
 
         return response()->json($document);
+    }
+
+    public function destroy(Request $request, string $documentId): JsonResponse
+    {
+        $user = $request->attributes->get('auth_user');
+        $result = $this->documentService->delete($user['tenant_id'], $user['id'], $documentId);
+
+        if (($result['status'] ?? null) === 'not_found') {
+            return response()->json([
+                'error' => [
+                    'code' => 'NOT_FOUND',
+                    'message' => 'Documento non trovato.',
+                ],
+            ], 404);
+        }
+
+        if (($result['status'] ?? null) === 'already_deleted') {
+            return response()->json([
+                'error' => [
+                    'code' => 'ALREADY_DELETED',
+                    'message' => 'Il documento è già stato eliminato.',
+                ],
+            ], 409);
+        }
+
+        return response()->json($result);
     }
 
     public function retry(DocumentRetryRequest $request, string $documentId): JsonResponse

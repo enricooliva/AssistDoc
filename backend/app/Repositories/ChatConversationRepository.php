@@ -4,18 +4,42 @@ namespace App\Repositories;
 
 use App\Models\ChatConversation;
 use App\Models\ChatMessage;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class ChatConversationRepository
 {
     public function listForUser(string $tenantId, string $userId): array
     {
         return ChatConversation::query()
+            ->with(['deletedBy'])
             ->where('tenant_id', $tenantId)
             ->where('user_id', $userId)
+            ->whereNull('deleted_at')
             ->latest('last_message_at')
             ->get()
             ->map(fn (ChatConversation $conversation): array => $this->mapConversation($conversation))
             ->all();
+    }
+
+    public function paginateForUser(string $tenantId, string $userId, int $page = 1, int $perPage = 25): array
+    {
+        /** @var LengthAwarePaginator $paginator */
+        $paginator = ChatConversation::query()
+            ->with(['deletedBy'])
+            ->where('tenant_id', $tenantId)
+            ->where('user_id', $userId)
+            ->whereNull('deleted_at')
+            ->latest('last_message_at')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        return [
+            'items' => collect($paginator->items())
+                ->map(fn (ChatConversation $conversation): array => $this->mapConversation($conversation))
+                ->all(),
+            'page' => $paginator->currentPage(),
+            'perPage' => $paginator->perPage(),
+            'total' => $paginator->total(),
+        ];
     }
 
     public function countForUser(string $tenantId, string $userId): int
@@ -23,6 +47,7 @@ class ChatConversationRepository
         return ChatConversation::query()
             ->where('tenant_id', $tenantId)
             ->where('user_id', $userId)
+            ->whereNull('deleted_at')
             ->count();
     }
 
@@ -40,6 +65,19 @@ class ChatConversationRepository
     public function findForUser(string $tenantId, string $userId, string $conversationId): ?ChatConversation
     {
         return ChatConversation::query()
+            ->with(['deletedBy'])
+            ->where('tenant_id', $tenantId)
+            ->where('user_id', $userId)
+            ->whereNull('deleted_at')
+            ->whereKey($conversationId)
+            ->first();
+    }
+
+    public function findForUserIncludingDeleted(string $tenantId, string $userId, string $conversationId): ?ChatConversation
+    {
+        return ChatConversation::query()
+            ->with(['deletedBy'])
+            ->withTrashed()
             ->where('tenant_id', $tenantId)
             ->where('user_id', $userId)
             ->whereKey($conversationId)
@@ -57,12 +95,24 @@ class ChatConversationRepository
     {
         return ChatConversation::query()
             ->with([
+                'deletedBy',
                 'messages' => fn ($query) => $query->with(['citations.document'])->orderBy('created_at'),
             ])
             ->where('tenant_id', $tenantId)
             ->where('user_id', $userId)
+            ->whereNull('deleted_at')
             ->whereKey($conversationId)
             ->first();
+    }
+
+    public function softDelete(ChatConversation $conversation, string $deletedByUserId): ChatConversation
+    {
+        $conversation->forceFill([
+            'deleted_by_user_id' => $deletedByUserId,
+            'deleted_at' => now(),
+        ])->save();
+
+        return $conversation->refresh();
     }
 
     public function createMessage(
@@ -99,6 +149,7 @@ class ChatConversationRepository
             'title' => $conversation->title,
             'status' => $conversation->status,
             'lastMessageAt' => $conversation->last_message_at?->toIso8601String(),
+            'deletedAt' => $conversation->deleted_at?->toIso8601String(),
         ];
     }
 }

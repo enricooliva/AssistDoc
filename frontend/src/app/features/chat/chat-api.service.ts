@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { apiUrl } from '../../core/api/api-url';
 import {
   ArchiveConversationResponse,
+  ConversationDeleteResponse,
   ChatExchangeResponse,
   ChatMessage,
   ChatSearchFilters,
@@ -21,10 +22,14 @@ export class ChatApiService {
   readonly conversations = signal<ConversationSummary[]>([]);
   readonly messages = signal<ChatMessage[]>([]);
   readonly activeConversationId = signal<string | null>(null);
+  readonly page = signal(1);
+  readonly perPage = signal(10);
+  readonly total = signal(0);
   readonly loadingConversations = signal(false);
   readonly loadingThread = signal(false);
   readonly creatingConversation = signal(false);
   readonly submitting = signal(false);
+  readonly deletingConversationId = signal<string | null>(null);
   readonly error = signal('');
   readonly loading = computed(
     () => this.loadingConversations() || this.loadingThread() || this.creatingConversation(),
@@ -47,16 +52,24 @@ export class ChatApiService {
     await this.createConversation();
   }
 
-  async loadConversations(): Promise<void> {
+  async loadConversations(page = this.page(), perPage = this.perPage()): Promise<void> {
     this.loadingConversations.set(true);
     this.error.set('');
 
     try {
       const response = await firstValueFrom(
-        this.http.get<ConversationListResponse>(apiUrl('/api/v1/chat/conversations')),
+        this.http.get<ConversationListResponse>(apiUrl('/api/v1/chat/conversations'), {
+          params: {
+            page: String(page),
+            perPage: String(perPage),
+          },
+        }),
       );
 
       this.conversations.set(response.items);
+      this.page.set(response.page);
+      this.perPage.set(response.perPage);
+      this.total.set(response.total);
     } catch (error) {
       this.error.set(this.extractError(error, 'Impossibile caricare le conversazioni.'));
       throw error;
@@ -74,9 +87,9 @@ export class ChatApiService {
         this.http.post<ConversationSummary>(apiUrl('/api/v1/chat/conversations'), payload),
       );
 
+      await this.loadConversations(1, this.perPage());
       this.activeConversationId.set(conversation.id);
       this.messages.set([]);
-      this.upsertConversation(conversation);
 
       return conversation;
     } catch (error) {
@@ -167,6 +180,44 @@ export class ChatApiService {
       const message = this.extractError(error, 'Impossibile archiviare la conversazione.');
       this.error.set(message);
       throw new Error(message);
+    }
+  }
+
+  async deleteConversation(conversationId: string): Promise<ConversationDeleteResponse> {
+    this.deletingConversationId.set(conversationId);
+    this.error.set('');
+
+    const activeWasDeleted = this.activeConversationId() === conversationId;
+    const currentPage = this.page();
+    const currentPerPage = this.perPage();
+
+    try {
+      const response = await firstValueFrom(
+        this.http.delete<ConversationDeleteResponse>(apiUrl(`/api/v1/chat/conversations/${conversationId}`)),
+      );
+
+      const targetPage = currentPage > 1 && this.conversations().length === 1 ? currentPage - 1 : currentPage;
+      await this.loadConversations(targetPage, currentPerPage);
+
+      if (activeWasDeleted) {
+        this.activeConversationId.set(null);
+        this.messages.set([]);
+
+        const nextConversation = this.conversations()[0];
+        if (nextConversation) {
+          await this.openConversation(nextConversation.id);
+        } else {
+          await this.createConversation();
+        }
+      }
+
+      return response;
+    } catch (error) {
+      const message = this.extractError(error, 'Impossibile eliminare la conversazione.');
+      this.error.set(message);
+      throw new Error(message);
+    } finally {
+      this.deletingConversationId.set(null);
     }
   }
 

@@ -15,8 +15,10 @@ export interface DocumentListItem {
   uploadedAt: string;
   lastStatusAt: string;
   indexedAt?: string | null;
+  deletedAt?: string | null;
   failureReason?: string | null;
   uploadedBy: DocumentUserSummary;
+  deletedBy?: DocumentUserSummary | null;
   activeRetrievalModelProfile?: { id: string; name: string } | null;
   activeChunkingProfile?: { id: string; name: string } | null;
   activePreparationRunId?: string | null;
@@ -34,6 +36,14 @@ export interface DocumentListResponse {
 export interface DocumentRetryResponse {
   documentId: string;
   status: DocumentStatus;
+}
+
+export interface DocumentDeleteResponse {
+  documentId: string;
+  status: 'deleted' | 'already_deleted' | 'not_found';
+  deletedAt?: string | null;
+  deletedBy?: DocumentUserSummary | null;
+  removedFromList?: boolean;
 }
 
 export interface RetrievalModelProfile {

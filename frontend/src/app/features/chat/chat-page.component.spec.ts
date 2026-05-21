@@ -25,13 +25,17 @@ class ChatApiServiceStub {
     status: 'active' as const,
     lastMessageAt: '2026-05-11T10:00:00Z',
   });
+  readonly page = signal(1);
+  readonly perPage = signal(10);
+  readonly total = signal(1);
   readonly loading = signal(false);
   readonly submitting = signal(false);
   readonly error = signal('');
   readonly initialize = jasmine.createSpy('initialize').and.resolveTo();
   readonly createConversation = jasmine.createSpy('createConversation').and.resolveTo();
   readonly openConversation = jasmine.createSpy('openConversation').and.resolveTo();
-  readonly archiveConversation = jasmine.createSpy('archiveConversation').and.resolveTo();
+  readonly loadConversations = jasmine.createSpy('loadConversations').and.resolveTo();
+  readonly deleteConversation = jasmine.createSpy('deleteConversation').and.resolveTo();
   readonly send = jasmine.createSpy('send').and.resolveTo();
   readonly isArchivedConversation = signal(false);
 }
@@ -116,10 +120,18 @@ describe('ChatPageComponent', () => {
     expect(component.feedback()).toContain('Inserisci una domanda');
   });
 
-  it('archives the active conversation from the header action', async () => {
-    await component.archiveConversation();
+  it('loads the previous conversation page when requested', async () => {
+    chatApi.page.set(2);
 
-    expect(chatApi.archiveConversation).toHaveBeenCalledWith('conv-1');
+    await component.previousConversationPage();
+
+    expect(chatApi.loadConversations).toHaveBeenCalledWith(1, 10);
+  });
+
+  it('invokes conversation deletion from the history row action', async () => {
+    await component.deleteConversation('conv-1');
+
+    expect(chatApi.deleteConversation).toHaveBeenCalledWith('conv-1');
   });
 
   it('tracks composer model changes for tag filters', () => {

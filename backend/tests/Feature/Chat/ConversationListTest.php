@@ -63,25 +63,52 @@ class ConversationListTest extends TestCase
     }
 
     #[Test]
-    public function it_keeps_archived_conversations_visible_in_history(): void
+    public function it_paginates_the_conversation_history_and_hides_soft_deleted_items(): void
     {
         $viewer = User::query()->where('email', 'viewer@assistdoc.local')->firstOrFail();
 
-        $archived = ChatConversation::query()->create([
+        foreach (range(1, 26) as $index) {
+            ChatConversation::query()->create([
+                'tenant_id' => $viewer->tenant_id,
+                'user_id' => $viewer->id,
+                'title' => sprintf('Conversazione %02d', $index),
+                'status' => 'active',
+                'last_message_at' => now()->subMinutes($index),
+            ]);
+        }
+
+        ChatConversation::query()->create([
             'tenant_id' => $viewer->tenant_id,
             'user_id' => $viewer->id,
-            'title' => 'Storico chat',
-            'status' => 'archived',
-            'last_message_at' => now(),
+            'title' => 'Conversazione eliminata',
+            'status' => 'active',
+            'last_message_at' => now()->subDay(),
+            'deleted_at' => now()->subHour(),
+            'deleted_by_user_id' => $viewer->id,
         ]);
 
         $token = $this->login('viewer@assistdoc.local');
 
         $this->withToken($token)
+            ->getJson('/api/v1/chat/conversations?page=1&perPage=25')
+            ->assertOk()
+            ->assertJsonPath('page', 1)
+            ->assertJsonPath('perPage', 25)
+            ->assertJsonPath('total', 26)
+            ->assertJsonCount(25, 'items');
+
+        $this->withToken($token)
+            ->getJson('/api/v1/chat/conversations?page=2&perPage=25')
+            ->assertOk()
+            ->assertJsonPath('page', 2)
+            ->assertJsonPath('perPage', 25)
+            ->assertJsonPath('total', 26)
+            ->assertJsonCount(1, 'items');
+
+        $this->withToken($token)
             ->getJson('/api/v1/chat/conversations')
             ->assertOk()
-            ->assertJsonPath('items.0.id', (string) $archived->id)
-            ->assertJsonPath('items.0.status', 'archived');
+            ->assertJsonMissing(['title' => 'Conversazione eliminata']);
     }
 
     private function login(string $email): string

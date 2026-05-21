@@ -70,4 +70,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(AuditEvent::class, 'actor_user_id');
     }
+
+    public function deletedDocuments(): HasMany
+    {
+        return $this->hasMany(Document::class, 'deleted_by_user_id');
+    }
 }

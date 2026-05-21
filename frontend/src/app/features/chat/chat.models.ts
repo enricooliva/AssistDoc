@@ -21,6 +21,12 @@ export interface ConversationSummary {
   title: string;
   status: 'active' | 'archived';
   lastMessageAt: string | null;
+  deletedAt?: string | null;
+}
+
+export interface ConversationUserSummary {
+  id: string;
+  fullName: string;
 }
 
 export interface ConversationListResponse {
@@ -44,6 +50,16 @@ export interface ArchiveConversationResponse {
   title: string;
   status: 'active' | 'archived';
   lastMessageAt: string | null;
+}
+
+export interface ConversationDeleteResponse {
+  conversationId: string;
+  title: string;
+  status: 'active' | 'archived' | 'not_found' | 'already_deleted';
+  lastMessageAt: string | null;
+  deletedAt?: string | null;
+  deletedBy?: ConversationUserSummary | null;
+  removedFromList?: boolean;
 }
 
 export interface SubmitChatQuestionRequest {

@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Models\Document;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
 class DocumentRepository
@@ -10,7 +11,7 @@ class DocumentRepository
     public function listForTenant(string $tenantId): array
     {
         return Document::query()
-            ->with(['uploader', 'segments', 'activeRetrievalModelProfile', 'activeChunkingProfile', 'activePreparationRun'])
+            ->with(['uploader', 'segments', 'activeRetrievalModelProfile', 'activeChunkingProfile', 'activePreparationRun', 'deleter'])
             ->where('tenant_id', $tenantId)
             ->orderByDesc('uploaded_at')
             ->get()
@@ -18,10 +19,29 @@ class DocumentRepository
             ->all();
     }
 
+    public function paginateForTenant(string $tenantId, int $page = 1, int $perPage = 25): array
+    {
+        /** @var LengthAwarePaginator $paginator */
+        $paginator = Document::query()
+            ->with(['uploader', 'deleter'])
+            ->where('tenant_id', $tenantId)
+            ->orderByDesc('uploaded_at')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        return [
+            'items' => collect($paginator->items())
+                ->map(fn (Document $document) => $this->mapDocument($document))
+                ->all(),
+            'page' => $paginator->currentPage(),
+            'perPage' => $paginator->perPage(),
+            'total' => $paginator->total(),
+        ];
+    }
+
     public function find(string $tenantId, string $documentId): ?array
     {
         $document = Document::query()
-            ->with(['uploader', 'segments', 'activeRetrievalModelProfile', 'activeChunkingProfile', 'activePreparationRun'])
+            ->with(['uploader', 'segments', 'activeRetrievalModelProfile', 'activeChunkingProfile', 'activePreparationRun', 'deleter'])
             ->where('tenant_id', $tenantId)
             ->whereKey($documentId)
             ->first();
@@ -32,7 +52,17 @@ class DocumentRepository
     public function findModel(string $tenantId, string $documentId): ?Document
     {
         return Document::query()
-            ->with(['uploader', 'segments', 'activeRetrievalModelProfile', 'activeChunkingProfile', 'activePreparationRun'])
+            ->with(['uploader', 'segments', 'activeRetrievalModelProfile', 'activeChunkingProfile', 'activePreparationRun', 'deleter'])
+            ->where('tenant_id', $tenantId)
+            ->whereKey($documentId)
+            ->first();
+    }
+
+    public function findModelIncludingDeleted(string $tenantId, string $documentId): ?Document
+    {
+        return Document::query()
+            ->with(['uploader', 'segments', 'activeRetrievalModelProfile', 'activeChunkingProfile', 'activePreparationRun', 'deleter'])
+            ->withTrashed()
             ->where('tenant_id', $tenantId)
             ->whereKey($documentId)
             ->first();
@@ -47,7 +77,20 @@ class DocumentRepository
     {
         $document->save();
 
-        return $document->refresh(['uploader', 'segments', 'activeRetrievalModelProfile', 'activeChunkingProfile', 'activePreparationRun']);
+        return $document->refresh(['uploader', 'deleter', 'segments', 'activeRetrievalModelProfile', 'activeChunkingProfile', 'activePreparationRun']);
+    }
+
+    public function softDelete(Document $document, string $deletedByUserId): Document
+    {
+        $document->forceFill([
+            'deleted_by_user_id' => $deletedByUserId,
+            'deleted_at' => now(),
+            'status' => 'deleted',
+            'failure_reason' => null,
+            'last_status_at' => now(),
+        ]);
+
+        return $this->save($document);
     }
 
     private function mapDocument(Document $document): array
@@ -65,12 +108,17 @@ class DocumentRepository
             'uploadedAt' => $document->uploaded_at?->toIso8601String(),
             'lastStatusAt' => $document->last_status_at?->toIso8601String(),
             'indexedAt' => $document->indexed_at?->toIso8601String(),
+            'deletedAt' => $document->deleted_at?->toIso8601String(),
             'failureReason' => $document->failure_reason,
             'tenantId' => (string) $document->tenant_id,
             'uploadedBy' => [
                 'id' => $document->uploader ? (string) $document->uploader->id : '',
                 'fullName' => $document->uploader?->name ?? 'Utente non disponibile',
             ],
+            'deletedBy' => $document->deleter ? [
+                'id' => (string) $document->deleter->id,
+                'fullName' => $document->deleter->name,
+            ] : null,
             'activeRetrievalModelProfile' => $document->activeRetrievalModelProfile ? [
                 'id' => (string) $document->activeRetrievalModelProfile->id,
                 'name' => $document->activeRetrievalModelProfile->name,
