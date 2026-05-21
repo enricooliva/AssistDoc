@@ -33,6 +33,22 @@ class CurrentUserTest extends TestCase
     }
 
     #[Test]
+    public function it_restores_the_current_user_after_password_login(): void
+    {
+        $loginResponse = $this->postJson('/api/v1/auth/password/login', [
+            'email' => 'viewer@assistdoc.local',
+            'password' => 'password123',
+        ])->assertOk();
+
+        $token = (string) $loginResponse->json('token');
+
+        $this->withToken($token)
+            ->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonPath('user.email', 'viewer@assistdoc.local');
+    }
+
+    #[Test]
     public function it_rejects_requests_without_a_valid_token(): void
     {
         $response = $this->getJson('/api/v1/auth/me');

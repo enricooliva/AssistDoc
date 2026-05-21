@@ -23,4 +23,19 @@ class AuthorizationService
 
         return $allowed;
     }
+
+    public function denyLifecycleState(array $user, string $reason, array $context = []): array
+    {
+        $this->auditService->record('auth.lifecycle_denied', $user['tenant_id'], $user['id'], array_merge([
+            'reason' => $reason,
+        ], $context), 'denied');
+
+        return [
+            'status' => 'denied',
+            'error' => [
+                'code' => 'ACCESS_DENIED',
+                'message' => 'L\'account non è autorizzato a completare questa operazione.',
+            ],
+        ];
+    }
 }

@@ -2,42 +2,16 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { apiUrl } from '../api/api-url';
-
-export interface SessionState {
-  token: string;
-  user: {
-    id: string;
-    email: string;
-    fullName: string;
-    role: 'super-admin' | 'operator' | 'viewer';
-  };
-  tenant: {
-    id: string;
-    name: string;
-    slug: string;
-  };
-}
-
-interface AuthApiResponse {
-  token: string;
-  token_type: 'Bearer';
-  expires_in: number;
-  user: {
-    id: string;
-    email: string;
-    full_name: string;
-    role: 'super-admin' | 'operator' | 'viewer';
-    tenant: {
-      id: string;
-      name: string;
-      slug: string;
-    };
-  };
-}
-
-interface CurrentUserResponse {
-  user: AuthApiResponse['user'];
-}
+import {
+  ActionRequiredResponse,
+  AuthApiResponse,
+  CompanyAccountStartResponse,
+  CurrentUserResponse,
+  LoginOptionsResponse,
+  PasswordResetCompleteResponse,
+  PasswordResetStartResponse,
+  SessionState,
+} from './auth.models';
 
 const STORAGE_KEY = 'assistdoc.session';
 
@@ -47,6 +21,20 @@ export class AuthService {
 
   readonly session = signal<SessionState | null>(this.readStoredSession());
   readonly feedback = signal('');
+  readonly loginOptions = signal<LoginOptionsResponse['options']>([
+    { id: 'company_account', label: 'Accedi con account aziendale' },
+    { id: 'password', label: 'Accedi con email e password' },
+  ]);
+  readonly pendingChallengeId = signal<string | null>(null);
+  readonly lastActionRequired = signal<ActionRequiredResponse | null>(null);
+
+  async loadLoginOptions(): Promise<void> {
+    const response = await firstValueFrom(
+      this.http.get<LoginOptionsResponse>(apiUrl('/api/v1/auth/options')),
+    );
+
+    this.loginOptions.set(response.options);
+  }
 
   async restoreSession(): Promise<void> {
     const current = this.session();
@@ -75,13 +63,34 @@ export class AuthService {
     }
   }
 
-  async signIn(email: string, password: string): Promise<void> {
+  async startCompanyAccount(): Promise<CompanyAccountStartResponse> {
     this.feedback.set('');
+    const response = await firstValueFrom(
+      this.http.post<CompanyAccountStartResponse>(apiUrl('/api/v1/auth/company-account/start'), {}),
+    );
+
+    return response;
+  }
+
+  async signIn(email: string, password: string): Promise<void> {
+    await this.signInWithPassword(email, password);
+  }
+
+  async signInWithPassword(email: string, password: string): Promise<void> {
+    this.feedback.set('');
+    this.lastActionRequired.set(null);
+    this.pendingChallengeId.set(null);
 
     try {
       const response = await firstValueFrom(
-        this.http.post<AuthApiResponse>(apiUrl('/api/v1/auth/login'), { email, password }),
+        this.http.post<AuthApiResponse | ActionRequiredResponse>(apiUrl('/api/v1/auth/password/login'), { email, password }),
       );
+
+      if (this.isActionRequiredResponse(response)) {
+        this.lastActionRequired.set(response);
+        this.pendingChallengeId.set(response.challenge_id ?? null);
+        return;
+      }
 
       this.persistSession({
         token: response.token,
@@ -94,7 +103,99 @@ export class AuthService {
         tenant: response.user.tenant,
       });
     } catch (error) {
+      if (error instanceof HttpErrorResponse && error.status === 409 && error.error?.status === 'action_required') {
+        const response = error.error as ActionRequiredResponse;
+        this.lastActionRequired.set(response);
+        this.pendingChallengeId.set(response.challenge_id ?? null);
+        this.feedback.set('');
+        return;
+      }
+
       const message = this.extractErrorMessage(error, 'Accesso non riuscito.');
+      this.feedback.set(message);
+      throw new Error(message);
+    }
+  }
+
+  async verifyMfa(verificationCode: string): Promise<void> {
+    const challengeId = this.pendingChallengeId();
+
+    if (!challengeId) {
+      throw new Error('Nessuna verifica MFA in corso.');
+    }
+
+    this.feedback.set('');
+
+    try {
+      const response = await firstValueFrom(
+        this.http.post<AuthApiResponse>(apiUrl('/api/v1/auth/mfa/verify'), {
+          challenge_id: challengeId,
+          verification_code: verificationCode,
+        }),
+      );
+
+      this.persistSession({
+        token: response.token,
+        user: {
+          id: response.user.id,
+          email: response.user.email,
+          fullName: response.user.full_name,
+          role: response.user.role,
+        },
+        tenant: response.user.tenant,
+      });
+      this.pendingChallengeId.set(null);
+      this.lastActionRequired.set(null);
+    } catch (error) {
+      if (error instanceof HttpErrorResponse && error.status === 409) {
+        const message = this.extractErrorMessage(error, 'Verifica MFA non riuscita.');
+        this.feedback.set(message);
+        this.lastActionRequired.set({
+          status: 'action_required',
+          action: 'account_locked',
+          message,
+          lockedUntil: error.error?.error?.details?.locked_until ?? null,
+        });
+        throw new Error(message);
+      }
+
+      const message = this.extractErrorMessage(error, 'Verifica MFA non riuscita.');
+      this.feedback.set(message);
+      throw new Error(message);
+    }
+  }
+
+  async requestPasswordReset(email: string): Promise<string> {
+    this.feedback.set('');
+
+    try {
+      const response = await firstValueFrom(
+        this.http.post<PasswordResetStartResponse>(apiUrl('/api/v1/auth/password-reset'), { email }),
+      );
+
+      this.feedback.set(response.message);
+      return response.reset_id;
+    } catch (error) {
+      const message = this.extractErrorMessage(error, 'Reset password non riuscito.');
+      this.feedback.set(message);
+      throw new Error(message);
+    }
+  }
+
+  async completePasswordReset(resetId: string, newPassword: string): Promise<void> {
+    this.feedback.set('');
+
+    try {
+      const response = await firstValueFrom(
+        this.http.post<PasswordResetCompleteResponse>(apiUrl('/api/v1/auth/password-reset/complete'), {
+          reset_id: resetId,
+          new_password: newPassword,
+        }),
+      );
+
+      this.feedback.set(response.message);
+    } catch (error) {
+      const message = this.extractErrorMessage(error, 'Completamento reset password non riuscito.');
       this.feedback.set(message);
       throw new Error(message);
     }
@@ -129,6 +230,11 @@ export class AuthService {
     this.feedback.set(message);
   }
 
+  clearActionRequired(): void {
+    this.pendingChallengeId.set(null);
+    this.lastActionRequired.set(null);
+  }
+
   private persistSession(session: SessionState): void {
     this.session.set(session);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
@@ -136,6 +242,8 @@ export class AuthService {
 
   private clearSession(clearFeedback = true): void {
     this.session.set(null);
+    this.pendingChallengeId.set(null);
+    this.lastActionRequired.set(null);
     localStorage.removeItem(STORAGE_KEY);
 
     if (clearFeedback) {
@@ -164,5 +272,9 @@ export class AuthService {
     }
 
     return fallback;
+  }
+
+  private isActionRequiredResponse(response: AuthApiResponse | ActionRequiredResponse): response is ActionRequiredResponse {
+    return 'status' in response && response.status === 'action_required';
   }
 }

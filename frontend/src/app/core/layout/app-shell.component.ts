@@ -22,6 +22,7 @@ export class AppShellComponent {
   readonly tenant = this.tenantContext.tenant;
   readonly feedback = this.authService.feedback;
   readonly initials = computed(() => this.session()?.user.fullName.slice(0, 1) ?? 'A');
+  readonly canManageUsers = computed(() => this.session()?.user.role === 'super-admin');
   readonly canViewAudit = computed(() => this.session()?.user.role === 'super-admin');
   readonly sidebarCollapsed = signal(this.loadSidebarPreference());
 

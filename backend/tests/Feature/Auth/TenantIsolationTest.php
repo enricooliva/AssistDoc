@@ -102,4 +102,19 @@ class TenantIsolationTest extends TestCase
             ->getJson('/api/v1/chat/conversations/'.$foreignConversation->id)
             ->assertStatus(404);
     }
+
+    #[Test]
+    public function it_does_not_expose_enterprise_users_from_another_tenant(): void
+    {
+        $viewerToken = (string) $this->postJson('/api/v1/auth/login', [
+            'email' => 'admin@assistdoc.local',
+            'password' => 'password123',
+        ])->json('token');
+
+        $response = $this->withToken($viewerToken)
+            ->getJson('/api/v1/users')
+            ->assertOk();
+
+        $this->assertSame(0, collect($response->json('items'))->where('email', 'viewer-b@assistdoc.local')->count());
+    }
 }

@@ -15,6 +15,8 @@ Auto-generated from all feature plans. Last updated: 2026-05-21
 - PostgreSQL-style relational storage for profiles, documents, runs, and audit events; private file storage for uploaded source files; Qdrant for vector payloads (006-qwen3-rag-support)
 - PHP 8.3 (Laravel 12), TypeScript 5.x (Angular SPA; current frontend package is Angular 18) + Laravel API stack, Angular SPA, JWT auth, Bootstrap, ngx-datatable, existing `DocumentService`, `DocumentRepository`, `DocumentSegmentRepository`, `QdrantService` (007-document-list)
 - PostgreSQL-style relational storage for documents, document_segments, users, tenants, and audit events; Qdrant collections for semantic vectors (007-document-list)
+- PHP 8.3 (Laravel 12), TypeScript 5.x (Angular SPA; current frontend package is Angular 18) + Laravel API stack, Angular SPA, JWT auth, Bootstrap, ngx-formly, existing `AuthService`, `AuthorizationService`, `TenantContextService`, audit infrastructure (008-enterprise-user-lifecycle)
+- PostgreSQL-style relational storage for users, tenants, role assignments, audit events, password reset journeys, MFA challenges, and lockout records (008-enterprise-user-lifecycle)
 
 - PHP 8.3 (Laravel 12), TypeScript 5.x (Angular 20), SQL for relational schema, YAML for infrastructure and API contracts + Laravel API stack, Angular SPA, Bootstrap, ngx-formly, ngx-datatable, Laravel queue workers, JWT authentication, Qdrant vector search, Ollama chat and embedding models (001-private-doc-assistant)
 
@@ -35,9 +37,9 @@ npm test && npm run lint
 PHP 8.3 (Laravel 12), TypeScript 5.x (Angular 20), SQL for relational schema, YAML for infrastructure and API contracts: Follow standard conventions
 
 ## Recent Changes
+- 008-enterprise-user-lifecycle: Added PHP 8.3 (Laravel 12), TypeScript 5.x (Angular SPA; current frontend package is Angular 18) + Laravel API stack, Angular SPA, JWT auth, Bootstrap, ngx-formly, existing `AuthService`, `AuthorizationService`, `TenantContextService`, audit infrastructure
 - 007-document-list: Added PHP 8.3 (Laravel 12), TypeScript 5.x (Angular SPA; current frontend package is Angular 18) + Laravel API stack, Angular SPA, JWT auth, Bootstrap, ngx-datatable, existing `DocumentService`, `DocumentRepository`, `DocumentSegmentRepository`, `QdrantService`
 - 006-qwen3-rag-support: Added PHP 8.3 (Laravel 12), TypeScript 5.x (Angular 20) + Laravel API stack, Angular SPA, Bootstrap, ngx-formly, ngx-datatable, JWT authentication, Qdrant vector search, Ollama-hosted generation and embedding models
-- 006-qwen3-rag-support: Added PHP 8.3 (Laravel 12), TypeScript 5.x (Angular 20), YAML for API contracts + Laravel API stack, Angular SPA, Bootstrap, ngx-formly, JWT authentication, Laravel queue workers, Qdrant vector search, existing `DocumentProcessingService`, `DocumentIndexerService`, `EmbeddingService`, `SemanticSearchService`, and `AiSearchService`; Ollama-hosted `llama3.2` and `Qwen3` generation models; profile-aware tokenizer counting service introduced in the backend
 
 
 <!-- MANUAL ADDITIONS START -->
