@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\DeleteEnterpriseUserRequest;
 use App\Http\Requests\EnterpriseUserIndexRequest;
 use App\Http\Requests\EnterpriseUserStatusUpdateRequest;
 use App\Http\Requests\EnterpriseUserStoreRequest;
@@ -24,6 +25,7 @@ class UserController extends Controller
             $user['tenant_id'],
             (int) $request->validated('page', 1),
             (int) $request->validated('perPage', 20),
+            $request->validated('query'),
         ));
     }
 
@@ -78,6 +80,26 @@ class UserController extends Controller
 
         if ($result === null) {
             return $this->errorResponse('NOT_FOUND', 'Utente non trovato.', 404);
+        }
+
+        return response()->json($result);
+    }
+
+    public function destroy(DeleteEnterpriseUserRequest $request, string $userId): JsonResponse
+    {
+        $user = $request->attributes->get('auth_user');
+        $result = $this->lifecycleService->deleteUser($user, $userId);
+
+        if ($result === null) {
+            return $this->errorResponse('NOT_FOUND', 'Utente non trovato.', 404);
+        }
+
+        if (($result['status'] ?? null) === 'already_deleted') {
+            return $this->errorResponse('ALREADY_DELETED', 'L\'utente è già stato eliminato.', 409);
+        }
+
+        if (($result['status'] ?? null) === 'delete_denied') {
+            return $this->errorResponse('DELETE_NOT_ALLOWED', 'L\'utente selezionato non può essere eliminato.', 409);
         }
 
         return response()->json($result);

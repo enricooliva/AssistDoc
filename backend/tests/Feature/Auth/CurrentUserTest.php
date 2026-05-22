@@ -77,6 +77,21 @@ class CurrentUserTest extends TestCase
             ->assertJsonPath('error.code', 'UNAUTHENTICATED');
     }
 
+    #[Test]
+    public function it_rejects_a_soft_deleted_user_when_restoring_the_session(): void
+    {
+        $user = User::query()->where('email', 'viewer@assistdoc.local')->firstOrFail();
+        $token = $this->loginAndReturnToken('viewer@assistdoc.local');
+
+        $user->deleted_by_user_id = User::query()->where('email', 'admin@assistdoc.local')->firstOrFail()->id;
+        $user->delete();
+
+        $this->withToken($token)
+            ->getJson('/api/v1/auth/me')
+            ->assertStatus(401)
+            ->assertJsonPath('error.code', 'UNAUTHENTICATED');
+    }
+
     private function loginAndReturnToken(string $email): string
     {
         return (string) $this->postJson('/api/v1/auth/login', [

@@ -10,7 +10,12 @@ class UserRepository
 {
     private function baseQuery()
     {
-        return User::query()->with(['tenant', 'roleAssignment', 'accessMethods']);
+        return User::query()->with(['tenant', 'roleAssignment', 'accessMethods', 'deleter']);
+    }
+
+    private function trashedBaseQuery()
+    {
+        return User::query()->withTrashed()->with(['tenant', 'roleAssignment', 'accessMethods', 'deleter']);
     }
 
     public function findByEmail(string $email): ?User
@@ -41,11 +46,25 @@ class UserRepository
         return $this->baseQuery()->whereKey($id)->first();
     }
 
-    public function paginateForTenant(string $tenantId, int $page = 1, int $perPage = 20): array
+    public function findByIdIncludingDeleted(int|string $id): ?User
     {
+        return $this->trashedBaseQuery()->whereKey($id)->first();
+    }
+
+    public function paginateForTenant(string $tenantId, int $page = 1, int $perPage = 20, ?string $query = null): array
+    {
+        $normalizedQuery = trim((string) $query);
+
         /** @var LengthAwarePaginator $paginator */
         $paginator = $this->baseQuery()
             ->where('tenant_id', $tenantId)
+            ->when($normalizedQuery !== '', function ($builder) use ($normalizedQuery) {
+                $builder->where(function ($queryBuilder) use ($normalizedQuery): void {
+                    $queryBuilder
+                        ->where('name', 'like', '%'.$normalizedQuery.'%')
+                        ->orWhere('email', 'like', '%'.$normalizedQuery.'%');
+                });
+            })
             ->orderBy('name')
             ->paginate($perPage, ['*'], 'page', $page);
 
@@ -68,7 +87,16 @@ class UserRepository
     {
         $user->save();
 
-        return $user->refresh()->load(['tenant', 'roleAssignment', 'accessMethods']);
+        return $user->refresh()->load(['tenant', 'roleAssignment', 'accessMethods', 'deleter']);
+    }
+
+    public function softDelete(User $user, string|int $deletedByUserId): User
+    {
+        $user->deleted_by_user_id = $deletedByUserId;
+        $user->save();
+        $user->delete();
+
+        return $this->findByIdIncludingDeleted($user->id) ?? $user;
     }
 
     public function syncAccessMethods(User $user, array $methods, string $managedBy = 'platform'): void
@@ -124,6 +152,11 @@ class UserRepository
                 ->values()
                 ->all(),
             'mfa_policy' => $user->mfa_policy,
+            'deleted_at' => $user->deleted_at?->toIso8601String(),
+            'deleted_by' => $user->deleter ? [
+                'id' => (string) $user->deleter->id,
+                'full_name' => $user->deleter->name,
+            ] : null,
             'lockout' => $lockout ? [
                 'status' => $lockout->status,
                 'reason' => $user->lockout_reason,

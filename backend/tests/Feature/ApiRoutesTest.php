@@ -39,5 +39,8 @@ class ApiRoutesTest extends TestCase
         $this->assertTrue(
             $routes->contains(fn ($route) => $route->uri() === 'api/v1/users/{userId}/unlock' && in_array('POST', $route->methods(), true))
         );
+        $this->assertTrue(
+            $routes->contains(fn ($route) => $route->uri() === 'api/v1/users/{userId}' && in_array('DELETE', $route->methods(), true))
+        );
     }
 }

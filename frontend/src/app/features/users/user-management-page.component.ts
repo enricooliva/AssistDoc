@@ -74,15 +74,28 @@ import { UserManagementApiService } from './user-management-api.service';
         <p class="users-page__feedback" *ngIf="message()">{{ message() }}</p>
         <p class="users-page__error" *ngIf="error()">{{ error() }}</p>
 
-        <button type="submit" [disabled]="submitting() || (!useCompanyAccount && !usePassword)">
+        <button class="btn btn-primary" type="submit" [disabled]="submitting() || (!useCompanyAccount && !usePassword)">
           {{ submitting() ? 'Provisioning...' : 'Crea utente' }}
         </button>
       </form>
 
       <section class="users-page__list">
         <div class="users-page__list-header">
-          <h3>Elenco utenti</h3>
-          <p *ngIf="api.loading()">Caricamento in corso...</p>
+          <div>
+            <h3>Elenco utenti</h3>
+            <p *ngIf="api.loading()">Caricamento in corso...</p>
+          </div>
+
+          <form class="users-page__search" (ngSubmit)="searchUsers()">
+            <input
+              [(ngModel)]="searchQuery"
+              name="searchQuery"
+              type="search"
+              placeholder="Cerca per nome o email"
+            />
+            <button class="btn btn-outline-primary btn-sm" type="submit" [disabled]="api.loading()">Cerca</button>
+            <button class="btn btn-outline-secondary btn-sm" type="button" (click)="clearSearch()" [disabled]="api.loading() || !hasActiveSearch()">Azzera</button>
+          </form>
         </div>
 
         <article *ngFor="let user of api.items()" class="users-page__item">
@@ -93,19 +106,21 @@ import { UserManagementApiService } from './user-management-api.service';
             <small *ngIf="user.lockout">Bloccato fino a {{ user.lockout.locked_until || 'data non disponibile' }}</small>
           </div>
           <div class="users-page__actions">
-            <button type="button" (click)="setStatus(user.id, 'active')">Attiva</button>
-            <button type="button" (click)="setStatus(user.id, 'suspended')">Sospendi</button>
-            <button type="button" (click)="setStatus(user.id, 'deactivated')">Disattiva</button>
-            <button type="button" (click)="unlock(user.id)">Sblocca</button>
+            <button class="btn btn-outline-primary btn-sm" type="button" (click)="setStatus(user.id, 'active')">Attiva</button>
+            <button class="btn btn-outline-warning btn-sm" type="button" (click)="setStatus(user.id, 'suspended')">Sospendi</button>
+            <button class="btn btn-outline-danger btn-sm" type="button" (click)="setStatus(user.id, 'deactivated')">Disattiva</button>
+            <button class="btn btn-outline-secondary btn-sm" type="button" (click)="unlock(user.id)">Sblocca</button>
+            <button class="btn btn-outline-danger btn-sm" type="button" (click)="deleteUser(user.id, user.full_name)">Elimina</button>
           </div>
         </article>
 
-        <p class="users-page__empty" *ngIf="!api.loading() && !api.items().length">Nessun utente provisionato per questo tenant.</p>
+        <p class="users-page__empty" *ngIf="!api.loading() && !api.items().length && hasActiveSearch()">Nessun utente corrisponde alla ricerca corrente.</p>
+        <p class="users-page__empty" *ngIf="!api.loading() && !api.items().length && !hasActiveSearch()">Nessun utente provisionato per questo tenant.</p>
 
         <div class="users-page__pagination">
-          <button type="button" (click)="changePage(-1)" [disabled]="api.page() <= 1 || api.loading()">Precedenti</button>
+          <button class="btn btn-outline-secondary btn-sm" type="button" (click)="changePage(-1)" [disabled]="api.page() <= 1 || api.loading()">Precedenti</button>
           <span>Pag. {{ api.page() }}/{{ totalPages() }}</span>
-          <button type="button" (click)="changePage(1)" [disabled]="api.page() >= totalPages() || api.loading()">Successive</button>
+          <button class="btn btn-outline-secondary btn-sm" type="button" (click)="changePage(1)" [disabled]="api.page() >= totalPages() || api.loading()">Successive</button>
         </div>
       </section>
     </section>
@@ -124,13 +139,13 @@ import { UserManagementApiService } from './user-management-api.service';
     .users-page__error, .users-page__empty { margin: 0; color: #b42318; }
     .users-page__list { display: grid; gap: 12px; }
     .users-page__list-header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+    .users-page__search { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .users-page__search input { border: 1px solid #d7dfe8; border-radius: 8px; padding: 8px 10px; min-width: 260px; }
     .users-page__item { display: flex; justify-content: space-between; align-items: center; gap: 12px; background: #fff; padding: 16px; border: 1px solid #d7dfe8; border-radius: 8px; }
     .users-page__item p { margin: 4px 0; color: #5d6b79; }
     .users-page__item small { display: block; color: #5d6b79; }
     .users-page__actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .users-page__pagination { display: flex; justify-content: flex-end; align-items: center; gap: 12px; }
-    button { border: 1px solid #2456d6; border-radius: 8px; background: #fff; color: #2456d6; padding: 10px 12px; }
-    button[type="submit"] { background: #2456d6; color: #fff; }
   `],
 })
 export class UserManagementPageComponent {
@@ -145,6 +160,7 @@ export class UserManagementPageComponent {
 
   useCompanyAccount = true;
   usePassword = false;
+  searchQuery = '';
   draft = {
     full_name: '',
     email: '',
@@ -156,6 +172,25 @@ export class UserManagementPageComponent {
 
   constructor() {
     void this.api.load();
+  }
+
+  hasActiveSearch(): boolean {
+    return this.searchQuery.trim().length > 0;
+  }
+
+  async searchUsers(): Promise<void> {
+    this.error.set('');
+
+    try {
+      await this.api.search(this.searchQuery);
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : 'Ricerca utenti non riuscita.');
+    }
+  }
+
+  async clearSearch(): Promise<void> {
+    this.searchQuery = '';
+    await this.searchUsers();
   }
 
   async createUser(): Promise<void> {
@@ -217,6 +252,26 @@ export class UserManagementPageComponent {
     }
   }
 
+  async deleteUser(userId: string, fullName: string): Promise<void> {
+    this.error.set('');
+
+    if (typeof window !== 'undefined') {
+      const confirmed = window.confirm(
+        `Confermi la soft delete dell'utente ${fullName}? L'utente verrà rimosso dall'elenco attivo ma resterà tracciabile nello storico.`,
+      );
+
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    try {
+      await this.api.delete(userId);
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : 'Eliminazione utente non riuscita.');
+    }
+  }
+
   async changePage(offset: number): Promise<void> {
     const nextPage = this.api.page() + offset;
 
@@ -224,6 +279,6 @@ export class UserManagementPageComponent {
       return;
     }
 
-    await this.api.load(nextPage);
+    await this.api.load(nextPage, this.api.query());
   }
 }

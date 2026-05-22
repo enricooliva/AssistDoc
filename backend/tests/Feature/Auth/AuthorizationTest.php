@@ -50,6 +50,20 @@ class AuthorizationTest extends TestCase
     }
 
     #[Test]
+    public function it_denies_a_viewer_from_deleting_enterprise_users(): void
+    {
+        $token = (string) $this->postJson('/api/v1/auth/login', [
+            'email' => 'viewer@assistdoc.local',
+            'password' => 'password123',
+        ])->json('token');
+
+        $this->withToken($token)
+            ->deleteJson('/api/v1/users/1')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'ACCESS_DENIED');
+    }
+
+    #[Test]
     public function it_denies_a_viewer_from_uploading_documents(): void
     {
         $token = (string) $this->postJson('/api/v1/auth/login', [

@@ -43,6 +43,7 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/users', [UserController::class, 'index'])->middleware('role:super-admin');
         Route::post('/users', [UserController::class, 'store'])->middleware('role:super-admin');
         Route::get('/users/{userId}', [UserController::class, 'show'])->middleware('role:super-admin');
+        Route::delete('/users/{userId}', [UserController::class, 'destroy'])->middleware('role:super-admin');
         Route::patch('/users/{userId}/status', [UserController::class, 'updateStatus'])->middleware('role:super-admin');
         Route::post('/users/{userId}/unlock', [UserController::class, 'unlock'])->middleware('role:super-admin');
     });

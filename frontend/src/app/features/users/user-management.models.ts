@@ -9,6 +9,11 @@ export interface EnterpriseUserSummary {
   status: 'provisioned' | 'active' | 'suspended' | 'locked' | 'deactivated' | 'reset_pending';
   access_methods: Array<'company_account' | 'password'>;
   mfa_policy: MfaPolicy;
+  deleted_at?: string | null;
+  deleted_by?: {
+    id: string;
+    full_name: string;
+  } | null;
   lockout?: {
     status: string;
     reason: string;
@@ -32,4 +37,15 @@ export interface EnterpriseUserCreatePayload {
   access_methods: Array<'company_account' | 'password'>;
   mfa_policy: MfaPolicy;
   password?: string;
+}
+
+export interface DeleteEnterpriseUserResponse {
+  status: 'deleted';
+  userId: string;
+  deletedAt: string;
+  deletedBy: {
+    id: string;
+    fullName: string;
+  };
+  removedFromList: boolean;
 }

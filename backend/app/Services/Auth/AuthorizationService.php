@@ -38,4 +38,16 @@ class AuthorizationService
             ],
         ];
     }
+
+    public function denyUserDelete(array $user, string $reason, array $context = []): array
+    {
+        $this->auditService->record('user.delete_denied', $user['tenant_id'], $user['id'], array_merge([
+            'reason' => $reason,
+        ], $context), 'denied', 'user', $context['target_user_id'] ?? null);
+
+        return [
+            'status' => 'delete_denied',
+            'reason' => $reason,
+        ];
+    }
 }

@@ -14,13 +14,14 @@ class EnterpriseUserLifecycleService
         private readonly UserRepository $users,
         private readonly RoleAssignmentRepository $roleAssignments,
         private readonly MfaLockoutService $mfaLockoutService,
+        private readonly AuthorizationService $authorizationService,
         private readonly AuditService $auditService,
     ) {
     }
 
-    public function listUsers(string $tenantId, int $page = 1, int $perPage = 20): array
+    public function listUsers(string $tenantId, int $page = 1, int $perPage = 20, ?string $query = null): array
     {
-        return $this->users->paginateForTenant($tenantId, $page, $perPage);
+        return $this->users->paginateForTenant($tenantId, $page, $perPage, $query);
     }
 
     public function showUser(string $tenantId, string $userId): ?array
@@ -118,5 +119,63 @@ class EnterpriseUserLifecycleService
         $user = $this->mfaLockoutService->release($user, $actorUserId);
 
         return ['user' => $this->users->mapEnterpriseUser($user)];
+    }
+
+    public function deleteUser(array $actor, string $userId): ?array
+    {
+        $user = $this->users->findByIdIncludingDeleted($userId);
+
+        if (! $user || (string) $user->tenant_id !== (string) $actor['tenant_id']) {
+            return null;
+        }
+
+        if ((string) $user->id === (string) $actor['id']) {
+            return $this->authorizationService->denyUserDelete($actor, 'self_delete_not_allowed', [
+                'target_user_id' => (string) $user->id,
+            ]);
+        }
+
+        if ($user->deleted_at !== null) {
+            return [
+                'status' => 'already_deleted',
+                'userId' => (string) $user->id,
+                'deletedAt' => $user->deleted_at?->toIso8601String(),
+            ];
+        }
+
+        $deletedUser = DB::transaction(function () use ($user, $actor): \App\Models\User {
+            $deleted = $this->users->softDelete($user, $actor['id']);
+
+            $this->auditService->record(
+                'user.deleted',
+                $actor['tenant_id'],
+                $actor['id'],
+                [
+                    'deleted_user_id' => (string) $deleted->id,
+                    'previous_status' => $user->status,
+                    'deleted_at' => $deleted->deleted_at?->toIso8601String(),
+                    'deleted_by_user_id' => $actor['id'],
+                ],
+                'success',
+                'user',
+                $deleted->id,
+            );
+
+            return $deleted;
+        });
+
+        return [
+            'status' => 'deleted',
+            'userId' => (string) $deletedUser->id,
+            'deletedAt' => $deletedUser->deleted_at?->toIso8601String(),
+            'deletedBy' => $deletedUser->deleter ? [
+                'id' => (string) $deletedUser->deleter->id,
+                'fullName' => $deletedUser->deleter->name,
+            ] : [
+                'id' => (string) $actor['id'],
+                'fullName' => 'Utente non disponibile',
+            ],
+            'removedFromList' => true,
+        ];
     }
 }

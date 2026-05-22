@@ -11,10 +11,19 @@ class UserManagementApiServiceStub {
   readonly page = signal(1);
   readonly perPage = signal(10);
   readonly total = signal(0);
+  readonly query = signal('');
   readonly load = jasmine.createSpy('load').and.resolveTo();
+  readonly search = jasmine.createSpy('search').and.resolveTo();
   readonly create = jasmine.createSpy('create').and.resolveTo();
   readonly updateStatus = jasmine.createSpy('updateStatus').and.resolveTo();
   readonly unlock = jasmine.createSpy('unlock').and.resolveTo();
+  readonly delete = jasmine.createSpy('delete').and.resolveTo({
+    status: 'deleted',
+    userId: '2',
+    deletedAt: '2026-05-22T10:00:00Z',
+    deletedBy: { id: '1', fullName: 'Admin Demo' },
+    removedFromList: true,
+  });
   readonly clearFeedback = jasmine.createSpy('clearFeedback');
 }
 
@@ -41,6 +50,8 @@ describe('UserManagementPageComponent', () => {
   let api: UserManagementApiServiceStub;
 
   beforeEach(async () => {
+    spyOn(window, 'confirm').and.returnValue(true);
+
     await TestBed.configureTestingModule({
       imports: [UserManagementPageComponent],
       providers: [
@@ -72,5 +83,31 @@ describe('UserManagementPageComponent', () => {
       tenant_id: 'tenant-1',
       access_methods: ['company_account', 'password'],
     }));
+  });
+
+  it('shows the backend validation message when provisioning fails', async () => {
+    api.create.and.rejectWith(new Error('Il campo password deve contenere almeno 12 caratteri.'));
+    component.usePassword = true;
+    component.draft.full_name = 'Mario Rossi';
+    component.draft.email = 'mario@example.test';
+
+    await component.createUser();
+
+    expect(component.error()).toBe('Il campo password deve contenere almeno 12 caratteri.');
+  });
+
+  it('submits a tenant-scoped search query', async () => {
+    component.searchQuery = 'viewer';
+
+    await component.searchUsers();
+
+    expect(api.search).toHaveBeenCalledWith('viewer');
+  });
+
+  it('confirms and soft deletes a user', async () => {
+    await component.deleteUser('2', 'Mario Rossi');
+
+    expect(window.confirm).toHaveBeenCalled();
+    expect(api.delete).toHaveBeenCalledWith('2');
   });
 });
