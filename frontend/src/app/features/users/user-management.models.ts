@@ -1,4 +1,4 @@
-import { MfaPolicy, TenantSummary, UserRole } from '../../core/auth/auth.models';
+import { MfaPolicy, TenantSummary, TenantUserRole, UserRole } from '../../core/auth/auth.models';
 
 export interface EnterpriseUserSummary {
   id: string;
@@ -32,7 +32,7 @@ export interface EnterpriseUserCreatePayload {
   full_name: string;
   email: string;
   tenant_id: string;
-  role: UserRole;
+  role: TenantUserRole;
   status: 'provisioned' | 'active' | 'suspended' | 'locked' | 'deactivated';
   access_methods: Array<'company_account' | 'password'>;
   mfa_policy: MfaPolicy;

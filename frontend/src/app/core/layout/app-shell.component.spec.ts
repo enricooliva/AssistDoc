@@ -55,6 +55,7 @@ describe('AppShellComponent', () => {
   it('renders authenticated shell chrome', () => {
     expect(fixture.nativeElement.textContent).toContain('AssistDoc');
     expect(fixture.nativeElement.textContent).toContain('Admin Demo');
+    expect(fixture.nativeElement.textContent).toContain('Tenant');
   });
 
   it('collapses and expands the left panel', () => {

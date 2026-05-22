@@ -38,9 +38,9 @@ npm test && npm run lint
 PHP 8.3 (Laravel 12), TypeScript 5.x (Angular 20), SQL for relational schema, YAML for infrastructure and API contracts: Follow standard conventions
 
 ## Recent Changes
+- 010-tenant-admin: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
 - 009-admin-user-search-delete: Added PHP 8.3 (Laravel 12), TypeScript 5.x (Angular SPA; current frontend package is Angular 18) + Laravel API stack, Angular SPA, JWT auth, Bootstrap, existing `EnterpriseUserLifecycleService`, existing `UserRepository`, existing audit infrastructure
 - 008-enterprise-user-lifecycle: Added PHP 8.3 (Laravel 12), TypeScript 5.x (Angular SPA; current frontend package is Angular 18) + Laravel API stack, Angular SPA, JWT auth, Bootstrap, ngx-formly, existing `AuthService`, `AuthorizationService`, `TenantContextService`, audit infrastructure
-- 007-document-list: Added PHP 8.3 (Laravel 12), TypeScript 5.x (Angular SPA; current frontend package is Angular 18) + Laravel API stack, Angular SPA, JWT auth, Bootstrap, ngx-datatable, existing `DocumentService`, `DocumentRepository`, `DocumentSegmentRepository`, `QdrantService`
 
 
 <!-- MANUAL ADDITIONS START -->

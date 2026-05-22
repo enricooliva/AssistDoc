@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\ChatController;
 use App\Http\Controllers\Api\V1\DocumentController;
 use App\Http\Controllers\Api\V1\SearchController;
+use App\Http\Controllers\Api\V1\TenantController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -40,11 +41,15 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/chat/conversations/{conversationId}/messages', [ChatController::class, 'message'])->middleware('role:super-admin,operator,viewer');
 
         Route::get('/audit-events', [AuditController::class, 'index'])->middleware('role:super-admin');
-        Route::get('/users', [UserController::class, 'index'])->middleware('role:super-admin');
-        Route::post('/users', [UserController::class, 'store'])->middleware('role:super-admin');
-        Route::get('/users/{userId}', [UserController::class, 'show'])->middleware('role:super-admin');
-        Route::delete('/users/{userId}', [UserController::class, 'destroy'])->middleware('role:super-admin');
-        Route::patch('/users/{userId}/status', [UserController::class, 'updateStatus'])->middleware('role:super-admin');
-        Route::post('/users/{userId}/unlock', [UserController::class, 'unlock'])->middleware('role:super-admin');
+        Route::get('/tenants', [TenantController::class, 'index'])->middleware('role:super-admin');
+        Route::post('/tenants', [TenantController::class, 'store'])->middleware('role:super-admin');
+        Route::get('/tenants/{tenantId}', [TenantController::class, 'show'])->middleware('role:super-admin');
+        Route::post('/tenants/{tenantId}/users', [TenantController::class, 'storeUser'])->middleware('role:super-admin');
+        Route::get('/users', [UserController::class, 'index'])->middleware('role:super-admin,tenant-admin');
+        Route::post('/users', [UserController::class, 'store'])->middleware('role:super-admin,tenant-admin');
+        Route::get('/users/{userId}', [UserController::class, 'show'])->middleware('role:super-admin,tenant-admin');
+        Route::delete('/users/{userId}', [UserController::class, 'destroy'])->middleware('role:super-admin,tenant-admin');
+        Route::patch('/users/{userId}/status', [UserController::class, 'updateStatus'])->middleware('role:super-admin,tenant-admin');
+        Route::post('/users/{userId}/unlock', [UserController::class, 'unlock'])->middleware('role:super-admin,tenant-admin');
     });
 });

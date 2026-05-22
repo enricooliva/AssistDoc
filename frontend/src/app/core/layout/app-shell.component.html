@@ -11,6 +11,7 @@
     <nav class="shell__nav">
       <a class="shell__nav-item" routerLink="/" routerLinkActive="shell__nav-item--active" [routerLinkActiveOptions]="{ exact: true }">Chat</a>
       <a class="shell__nav-item" routerLink="/documents" routerLinkActive="shell__nav-item--active">Documenti</a>
+      <a *ngIf="canManageTenants()" class="shell__nav-item" routerLink="/tenants" routerLinkActive="shell__nav-item--active">Tenant</a>
       <a *ngIf="canManageUsers()" class="shell__nav-item" routerLink="/users" routerLinkActive="shell__nav-item--active">Utenti</a>
       <a *ngIf="canViewAudit()" class="shell__nav-item" routerLink="/audit" routerLinkActive="shell__nav-item--active">Audit</a>
     </nav>

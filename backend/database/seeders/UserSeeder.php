@@ -31,6 +31,19 @@ class UserSeeder extends Seeder
         );
         $this->syncAccessMethods($admin, ['company_account', 'password']);
 
+        $tenantAdmin = User::query()->updateOrCreate(
+            ['email' => 'tenant-admin@assistdoc.local'],
+            [
+                'tenant_id' => $tenant->id,
+                'name' => 'Tenant Admin Demo',
+                'password' => Hash::make('password123'),
+                'role' => 'tenant-admin',
+                'auth_provider' => 'local',
+                'status' => 'active',
+            ]
+        );
+        $this->syncAccessMethods($tenantAdmin, ['company_account', 'password']);
+
         $operator = User::query()->updateOrCreate(
             ['email' => 'operator@assistdoc.local'],
             [
@@ -58,6 +71,7 @@ class UserSeeder extends Seeder
         $this->syncAccessMethods($viewer, ['company_account', 'password']);
 
         $tenantB = Tenant::query()->where('slug', 'tenant-b')->first();
+        $tenantC = Tenant::query()->where('slug', 'tenant-c')->first();
 
         if ($tenantB) {
             $viewerB = User::query()->updateOrCreate(
@@ -72,6 +86,21 @@ class UserSeeder extends Seeder
                 ]
             );
             $this->syncAccessMethods($viewerB, ['company_account', 'password']);
+        }
+
+        if ($tenantC) {
+            $viewerC = User::query()->updateOrCreate(
+                ['email' => 'viewer-c@assistdoc.local'],
+                [
+                    'tenant_id' => $tenantC->id,
+                    'name' => 'Viewer Tenant C',
+                    'password' => Hash::make('password123'),
+                    'role' => 'viewer',
+                    'auth_provider' => 'local',
+                    'status' => 'active',
+                ]
+            );
+            $this->syncAccessMethods($viewerC, ['company_account', 'password']);
         }
     }
 

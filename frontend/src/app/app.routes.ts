@@ -6,6 +6,7 @@ import { AuditPageComponent } from './features/audit/audit-page.component';
 import { ChatPageComponent } from './features/chat/chat-page.component';
 import { DocumentsPageComponent } from './features/documents/documents-page.component';
 import { PasswordResetPageComponent } from './features/auth/password-reset-page.component';
+import { TenantAdminPageComponent } from './features/tenants/tenant-admin-page.component';
 import { UserManagementPageComponent } from './features/users/user-management-page.component';
 
 export const appRoutes: Routes = [
@@ -24,7 +25,8 @@ export const appRoutes: Routes = [
     children: [
       { path: '', pathMatch: 'full', component: ChatPageComponent },
       { path: 'documents', component: DocumentsPageComponent },
-      { path: 'users', component: UserManagementPageComponent, canActivate: [authGuard], data: { roles: ['super-admin'] } },
+      { path: 'tenants', component: TenantAdminPageComponent, canActivate: [authGuard], data: { roles: ['super-admin'] } },
+      { path: 'users', component: UserManagementPageComponent, canActivate: [authGuard], data: { roles: ['super-admin', 'tenant-admin'] } },
       { path: 'audit', component: AuditPageComponent, canActivate: [authGuard], data: { roles: ['super-admin'] } },
     ],
   },

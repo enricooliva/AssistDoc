@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/auth/auth.service';
+import { EnterpriseUserCreatePayload } from './user-management.models';
 import { UserManagementApiService } from './user-management-api.service';
 
 @Component({
@@ -37,7 +38,7 @@ import { UserManagementApiService } from './user-management-api.service';
             <select [(ngModel)]="draft.role" name="role">
               <option value="viewer">viewer</option>
               <option value="operator">operator</option>
-              <option value="super-admin">super-admin</option>
+              <option value="tenant-admin">tenant-admin</option>
             </select>
           </label>
 
@@ -161,7 +162,7 @@ export class UserManagementPageComponent {
   useCompanyAccount = true;
   usePassword = false;
   searchQuery = '';
-  draft = {
+  draft: Omit<EnterpriseUserCreatePayload, 'tenant_id' | 'access_methods'> = {
     full_name: '',
     email: '',
     role: 'viewer' as const,

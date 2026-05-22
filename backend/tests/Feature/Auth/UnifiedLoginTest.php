@@ -41,6 +41,18 @@ class UnifiedLoginTest extends TestCase
     }
 
     #[Test]
+    public function it_authenticates_the_tenant_admin_demo_user_through_the_unified_endpoint(): void
+    {
+        $this->postJson('/api/v1/auth/password/login', [
+            'email' => 'tenant-admin@assistdoc.local',
+            'password' => 'password123',
+        ])->assertOk()
+            ->assertJsonPath('status', 'authenticated')
+            ->assertJsonPath('user.email', 'tenant-admin@assistdoc.local')
+            ->assertJsonPath('user.role', 'tenant-admin');
+    }
+
+    #[Test]
     public function it_requires_password_reset_when_the_flag_is_active(): void
     {
         $user = User::query()->where('email', 'viewer@assistdoc.local')->firstOrFail();

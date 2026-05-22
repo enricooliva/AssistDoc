@@ -21,9 +21,9 @@ class EnterpriseUserManagementTest extends TestCase
     }
 
     #[Test]
-    public function a_super_admin_can_list_provisioned_users(): void
+    public function a_tenant_admin_can_list_provisioned_users(): void
     {
-        $token = $this->login('admin@assistdoc.local');
+        $token = $this->login('tenant-admin@assistdoc.local');
 
         $this->withToken($token)
             ->getJson('/api/v1/users')
@@ -32,9 +32,9 @@ class EnterpriseUserManagementTest extends TestCase
     }
 
     #[Test]
-    public function a_super_admin_can_provision_and_unlock_a_user(): void
+    public function a_tenant_admin_can_provision_and_unlock_a_user(): void
     {
-        $token = $this->login('admin@assistdoc.local');
+        $token = $this->login('tenant-admin@assistdoc.local');
         $tenant = Tenant::query()->where('slug', 'assistdoc-demo')->firstOrFail();
 
         $createResponse = $this->withToken($token)

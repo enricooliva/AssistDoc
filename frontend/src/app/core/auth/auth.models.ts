@@ -1,4 +1,6 @@
-export type UserRole = 'super-admin' | 'operator' | 'viewer';
+export type UserRole = 'super-admin' | 'tenant-admin' | 'operator' | 'viewer';
+export type TenantUserRole = Exclude<UserRole, 'super-admin'>;
+export type TenantAdminRole = 'tenant-admin';
 export type LoginMethod = 'company_account' | 'password';
 export type MfaPolicy = 'required' | 'optional' | 'inherited';
 

@@ -25,6 +25,9 @@ class ApiRoutesTest extends TestCase
         $this->assertContains('api/v1/search/queries', $routes->map(fn ($route) => $route->uri())->all());
         $this->assertContains('api/v1/chat/conversations', $routes->map(fn ($route) => $route->uri())->all());
         $this->assertContains('api/v1/chat/conversations/{conversationId}', $routes->map(fn ($route) => $route->uri())->all());
+        $this->assertContains('api/v1/tenants', $routes->map(fn ($route) => $route->uri())->all());
+        $this->assertContains('api/v1/tenants/{tenantId}', $routes->map(fn ($route) => $route->uri())->all());
+        $this->assertContains('api/v1/tenants/{tenantId}/users', $routes->map(fn ($route) => $route->uri())->all());
         $this->assertContains('api/v1/users', $routes->map(fn ($route) => $route->uri())->all());
         $this->assertContains('api/v1/users/{userId}', $routes->map(fn ($route) => $route->uri())->all());
         $this->assertContains('api/v1/users/{userId}/status', $routes->map(fn ($route) => $route->uri())->all());
@@ -41,6 +44,12 @@ class ApiRoutesTest extends TestCase
         );
         $this->assertTrue(
             $routes->contains(fn ($route) => $route->uri() === 'api/v1/users/{userId}' && in_array('DELETE', $route->methods(), true))
+        );
+        $this->assertTrue(
+            $routes->contains(fn ($route) => $route->uri() === 'api/v1/tenants' && in_array('POST', $route->methods(), true))
+        );
+        $this->assertTrue(
+            $routes->contains(fn ($route) => $route->uri() === 'api/v1/tenants/{tenantId}/users' && in_array('POST', $route->methods(), true))
         );
     }
 }

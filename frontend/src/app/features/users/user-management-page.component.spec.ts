@@ -30,12 +30,12 @@ class UserManagementApiServiceStub {
 class AuthServiceStub {
   readonly session = signal({
     token: 'jwt',
-    user: {
-      id: '1',
-      email: 'admin@assistdoc.local',
-      fullName: 'Admin Demo',
-      role: 'super-admin' as const,
-    },
+      user: {
+        id: '1',
+        email: 'admin@assistdoc.local',
+        fullName: 'Admin Demo',
+        role: 'tenant-admin' as const,
+      },
     tenant: {
       id: 'tenant-1',
       name: 'AssistDoc Demo',

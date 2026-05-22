@@ -5,8 +5,15 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class EnterpriseUserStoreRequest extends FormRequest
+class TenantUserProvisionRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'tenant_id' => $this->route('tenantId'),
+        ]);
+    }
+
     public function authorize(): bool
     {
         return true;
@@ -15,9 +22,9 @@ class EnterpriseUserStoreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'full_name' => ['required', 'string', 'max:120'],
-            'email' => ['required', 'email'],
             'tenant_id' => ['required', 'string'],
+            'full_name' => ['required', 'string', 'max:120'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
             'role' => ['required', Rule::in(['tenant-admin', 'operator', 'viewer'])],
             'access_methods' => ['required', 'array', 'min:1'],
             'access_methods.*' => ['string', Rule::in(['company_account', 'password'])],

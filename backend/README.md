@@ -17,11 +17,21 @@ This backend exposes the tenant-aware REST API used by the Angular frontend.
 - `GET /api/v1/auth/me`
 - `POST /api/v1/auth/logout`
 
+### Tenant administration endpoints
+
+- `GET /api/v1/tenants`
+- `POST /api/v1/tenants`
+- `GET /api/v1/tenants/{tenantId}`
+- `POST /api/v1/tenants/{tenantId}/users`
+
 ### Local development users
 
 - `admin@assistdoc.local` / `password123`
+- `tenant-admin@assistdoc.local` / `password123`
 - `operator@assistdoc.local` / `password123`
 - `viewer@assistdoc.local` / `password123`
+
+`admin@assistdoc.local` crea i tenant; `tenant-admin@assistdoc.local` gestisce gli utenti del proprio tenant.
 - `viewer-b@assistdoc.local` / `password123`
 
 ### Tenant isolation
