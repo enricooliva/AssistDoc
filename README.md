@@ -21,3 +21,29 @@ Authentication slice status:
 - `GET /api/v1/auth/me` restores the authenticated user context for the SPA
 - `POST /api/v1/auth/logout` invalidates the current bearer token
 - tenant context is derived server-side from the authenticated user, not from client input
+
+docker compose --env-file .env.production -f docker-compose-prod.yml exec ollama ollama pull qwen3
+docker compose --env-file .env.production -f docker-compose-prod.yml exec ollama ollama pull qwen3-embedding
+
+sudo rm -rf frontend/dist
+docker compose --env-file .env.production -f docker-compose-prod.yml run --rm frontend-build
+docker compose --env-file .env.production -f docker-compose-prod.yml up -d --force-recreate nginx
+
+## Gestione
+docker compose --env-file .env.production -f docker-compose-prod.yml exec backend php artisan config:clear
+docker compose --env-file .env.production -f docker-compose-prod.yml up -d --force-recreate backend worker scheduler
+
+## Ngnix riavvia
+docker compose --env-file .env.production -f docker-compose-prod.yml up -d --build --force-recreate backend nginx
+
+## Test dimensione embedding
+ docker compose --env-file .env.production -f docker-compose-prod.yml exec backend php -r '
+$r=json_decode(shell_exec("curl -s http://ollama:11434/api/embed -H \"Content-Type: application/json\" -d '\''{\"model\":\"qwen3-embedding\",\"input\":\"test\
+"}'\''"), true);
+echo count($r["embeddings"][0]).PHP_EOL;
+'
+## Cambiato una linea di codice php Ricostruisco:
+docker compose --env-file .env.production -f docker-compose-prod.yml up -d --build --force-recreate backend worker scheduler
+
+## Controllo log laravel 
+docker compose --env-file .env.production -f docker-compose-prod.yml exec backend tail -n 100 storage/logs/laravel.log

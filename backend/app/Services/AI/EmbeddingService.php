@@ -20,9 +20,9 @@ class EmbeddingService
             return $this->fakeEmbedding($normalized, $profile);
         }
 
-        $response = Http::timeout(30)->post($this->getEmbeddingEndpoint($profile), [
+        $response = Http::timeout(120)->post($this->getEmbeddingEndpoint($profile), [
             'model' => $this->getEmbeddingModel($profile),
-            'prompt' => $normalized,
+            'input' => $normalized,
         ]);
 
         if ($response->failed()) {

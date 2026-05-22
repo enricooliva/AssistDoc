@@ -31,7 +31,7 @@ This backend exposes the tenant-aware REST API used by the Angular frontend.
 - `operator@assistdoc.local` / `password123`
 - `viewer@assistdoc.local` / `password123`
 
-`admin@assistdoc.local` crea i tenant; `tenant-admin@assistdoc.local` gestisce gli utenti del proprio tenant.
+- `admin@assistdoc.local` crea i tenant; `tenant-admin@assistdoc.local` gestisce gli utenti del proprio tenant.
 - `viewer-b@assistdoc.local` / `password123`
 
 ### Tenant isolation

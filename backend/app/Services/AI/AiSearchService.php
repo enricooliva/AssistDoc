@@ -109,12 +109,15 @@ PROMPT;
                 'prompt' => $prompt,
             ]);
 
-            $response = Http::timeout(120)->post($this->getGenerationEndpoint(), [
+            $response = Http::timeout(300)->post($this->getGenerationEndpoint(), [
                 'model' => $model,
                 'prompt' => $prompt,
+                'keep_alive' => '30m',
                 'options' => [
                     'max_tokens' => 300,
-                    'temperature' => 0.0,
+                    'num_ctx' => 2048,
+                    'num_predict' => 256,
+                    'temperature' => 0.2,
                 ],
                 'stream' => false,
             ]);
