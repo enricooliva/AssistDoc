@@ -1,8 +1,12 @@
-FROM node:22-bookworm
+FROM node:22-alpine 
 
 WORKDIR /app/frontend
 
-COPY frontend /app/frontend
+COPY frontend/package*.json ./
 
-CMD ["npm", "run", "start", "--", "--host", "0.0.0.0"]
+RUN npm ci
+
+COPY frontend ./
+
+CMD ["npm", "run", "build"]
 
