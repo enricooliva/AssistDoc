@@ -8,5 +8,5 @@ RUN npm ci
 
 COPY frontend ./
 
-CMD ["npm", "run", "build"]
+CMD ["npm", "run", "build", "--", "--configuration", "production"]
 

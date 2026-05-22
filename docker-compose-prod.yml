@@ -7,7 +7,7 @@ services:
     working_dir: /app/frontend
     volumes:
       - ./frontend/dist:/app/frontend/dist
-    command: npm run build
+    command: npm run build -- --configuration production
 
   nginx:
     image: nginx:1.27-alpine
@@ -105,7 +105,7 @@ services:
       - qdrant-data:/qdrant/storage
 
   ollama:
-    image: ollama/ollama:0.6.6
+    image: ollama/ollama:latest
     restart: unless-stopped
     volumes:
       - ollama-data:/root/.ollama
