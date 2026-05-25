@@ -135,7 +135,17 @@ PROMPT;
                 return 'Errore durante la generazione della risposta.';
             }
 
-            return trim($response->json('response', ''));
+            $answer = trim($response->json('response', ''));
+
+            Log::info('Ollama response received', [
+                'status' => $response->status(),
+                'answer_length' => strlen($answer),
+                'answer_preview' => mb_substr($answer, 0, 1000),
+                'answer_tail' => mb_substr($answer, -500),
+            ]);
+
+            return $answer;
+            
         } catch (\Throwable $e) {
             Log::error('askLlamaWithContext exception', ['error' => $e->getMessage()]);
 
