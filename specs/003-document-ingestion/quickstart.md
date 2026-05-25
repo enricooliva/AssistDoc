@@ -9,7 +9,7 @@ Verify that document upload uses the shared Formly file component, enforces Ital
 - Backend dependencies installed and application configured.
 - Frontend dependencies installed and Angular app configured.
 - Qdrant available for vector writes.
-- Ollama embeddings reachable at `http://192.168.5.137:11434/api/embeddings` with model `mxbai-embed-large`.
+- Ollama embeddings reachable at `http://192.168.5.137:11434/api/embed` with model `mxbai-embed-large`.
 - Auth seed data available with at least one `operator` user and one `viewer` user.
 
 ## Local Run

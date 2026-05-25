@@ -17,7 +17,7 @@ class EmbeddingServiceTest extends TestCase
         $vector = $service->embed('AssistDoc usa Qwen per i vettori documentali.');
 
         $this->assertSame('qwen3-embedding', $service->getEmbeddingModel());
-        $this->assertSame('http://192.168.5.137:11434/api/embeddings', $service->getEmbeddingEndpoint());
+        $this->assertSame('http://192.168.5.137:11434/api/embed', $service->getEmbeddingEndpoint());
         $this->assertSame(4096, $service->getEmbeddingDimensions());
         $this->assertSame(320000, $service->getEmbeddingMaxInputChars());
         $this->assertCount(4096, $vector);

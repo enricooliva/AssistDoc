@@ -10,7 +10,7 @@ Deliver the AssistDoc MVP as a containerized web application with an Angular SPA
 ## Technical Context
 
 **Language/Version**: PHP 8.3 (Laravel 12), TypeScript 5.x (Angular 20), SQL for relational schema, YAML for infrastructure and API contracts  
-**Primary Dependencies**: Laravel API stack, Angular SPA, Bootstrap, ngx-formly, ngx-datatable, Laravel queue workers, JWT authentication, Qdrant vector search, Ollama chat model plus `mxbai-embed-large` embeddings (1024 dimensions) served from `http://192.168.5.137:11434/api/embeddings`  
+**Primary Dependencies**: Laravel API stack, Angular SPA, Bootstrap, ngx-formly, ngx-datatable, Laravel queue workers, JWT authentication, Qdrant vector search, Ollama chat model plus `mxbai-embed-large` embeddings (1024 dimensions) served from `http://192.168.5.137:11434/api/embed`  
 **Storage**: MySQL for relational data, Qdrant for tenant-scoped 1024-dimensional vector embeddings, object/file storage for uploaded documents  
 **Testing**: PHPUnit/Pest for backend API and workflow tests, Angular unit/component tests, Playwright end-to-end tests, contract validation for OpenAPI  
 **Target Platform**: Linux containers orchestrated with Docker Compose for local and small-scale deployment  

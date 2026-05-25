@@ -10,7 +10,7 @@ Deliver the document-ingestion slice by replacing the placeholder upload UI with
 ## Technical Context
 
 **Language/Version**: PHP 8.3 (Laravel 12), TypeScript 5.x (Angular 20), YAML for API contracts  
-**Primary Dependencies**: Laravel API stack, Angular SPA, Bootstrap Italia styling on top of Bootstrap, ngx-formly, JWT authentication, Laravel queue workers, Qdrant vector search, existing `EmbeddingService` configured for Ollama `mxbai-embed-large` (1024 dimensions) at `http://192.168.5.137:11434/api/embeddings` with shared input truncation before embedding, existing `AttachmentIndexerService` chunking pattern, an internal PDF text extractor for uploaded binary streams  
+**Primary Dependencies**: Laravel API stack, Angular SPA, Bootstrap Italia styling on top of Bootstrap, ngx-formly, JWT authentication, Laravel queue workers, Qdrant vector search, existing `EmbeddingService` configured for Ollama `mxbai-embed-large` (1024 dimensions) at `http://192.168.5.137:11434/api/embed` with shared input truncation before embedding, existing `AttachmentIndexerService` chunking pattern, an internal PDF text extractor for uploaded binary streams  
 **Storage**: Relational database for `documents` and `document_segments`, private file storage for uploaded source files, Qdrant for semantic retrieval vectors  
 **Testing**: PHPUnit feature and unit tests, Angular component tests, Playwright end-to-end tests, OpenAPI contract review  
 **Target Platform**: Linux-hosted web application with Angular frontend and Laravel API backend  

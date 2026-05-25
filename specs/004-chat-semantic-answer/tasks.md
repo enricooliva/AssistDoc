@@ -139,7 +139,7 @@
 - [X] T048 [P] Implement first-question title generation and conversation archive workflow in `backend/app/Services/Chat/ChatService.php`, `backend/app/Repositories/ChatConversationRepository.php`, `backend/app/Http/Controllers/Api/V1/ChatController.php`, and `backend/routes/api.php`
 - [X] T049 [P] Implement archive-aware frontend chat state and controls in `frontend/src/app/features/chat/chat-api.service.ts`, `frontend/src/app/features/chat/chat.models.ts`, and `frontend/src/app/features/chat/chat-page.component.ts`
 - [X] T050 Update chat layout actions so `Nuova chat` and `Invia` occupy the available width in `frontend/src/app/features/chat/chat-page.component.html` and `frontend/src/app/features/chat/chat-page.component.scss`
-- [X] T051 [P] Reconfigure the shared embedding integration to use Ollama `mxbai-embed-large` (1024 dimensions) via `http://192.168.5.137:11434/api/embeddings` in `backend/app/Services/AI/EmbeddingService.php`, `backend/config/services.php`, and `backend/.env.example`
+- [X] T051 [P] Reconfigure the shared embedding integration to use Ollama `mxbai-embed-large` (1024 dimensions) via `http://192.168.5.137:11434/api/embed` in `backend/app/Services/AI/EmbeddingService.php`, `backend/config/services.php`, and `backend/.env.example`
 - [X] T052 Add shared input-length guarding for Ollama embeddings in `backend/app/Services/AI/EmbeddingService.php`, `backend/config/services.php`, and `backend/tests/Unit/AI/EmbeddingServiceTest.php`
 
 ---

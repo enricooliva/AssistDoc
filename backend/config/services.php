@@ -43,7 +43,7 @@ return [
     'ollama' => [
         'url' => env('OLLAMA_URL', 'http://192.168.5.137:11434'),
         'generation_url' => env('OLLAMA_URL', 'http://192.168.5.137:11434') . '/api/generate',
-        'embedding_url' => env('OLLAMA_URL', 'http://192.168.5.137:11434') . '/api/embeddings',
+        'embedding_url' => env('OLLAMA_URL', 'http://192.168.5.137:11434') . '/api/embed',
         'embedding_max_input_chars' => (int) env('OLLAMA_EMBEDDING_MAX_INPUT_CHARS', 1800),
     ],
 

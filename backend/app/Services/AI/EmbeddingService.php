@@ -59,7 +59,7 @@ class EmbeddingService
 
     public function getEmbeddingEndpoint(?RetrievalModelProfile $profile = null): string
     {
-        return (string) config('services.ollama.embedding_url', 'http://192.168.5.137:11434/api/embeddings');
+        return (string) config('services.ollama.embedding_url', 'http://192.168.5.137:11434/api/embed');
     }
 
     public function getEmbeddingDimensions(?RetrievalModelProfile $profile = null): int
