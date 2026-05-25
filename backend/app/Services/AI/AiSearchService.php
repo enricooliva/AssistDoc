@@ -115,10 +115,13 @@ PROMPT;
                 'prompt' => $prompt,
                 'keep_alive' => '30m',
                 'options' => [
-                    'max_tokens' => 300,
-                    'num_ctx' => 2048,
-                    'num_predict' => 256,
-                    'temperature' => 0.2,
+                    'num_ctx' => 1024,
+                    'num_predict' => 64,
+                    'temperature' => 0.1,
+                    // 'max_tokens' => 300,
+                    // 'num_ctx' => 2048,
+                    // 'num_predict' => 256,
+                    // 'temperature' => 0.1,
                 ],
                 'stream' => false,
             ]);
