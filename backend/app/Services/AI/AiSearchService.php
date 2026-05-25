@@ -115,7 +115,8 @@ PROMPT;
                 'prompt' => $prompt,
                 'keep_alive' => '30m',
                 'options' => [
-                    'num_ctx' => 1024,                    
+                    'num_ctx' => 1024,
+                    'num_predict' => 384,
                     'temperature' => 0.2,
                     // 'num_ctx' => 2048,
                     // 'num_predict' => 512,
