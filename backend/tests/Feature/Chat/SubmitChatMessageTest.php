@@ -5,8 +5,10 @@ namespace Tests\Feature\Chat;
 use App\Models\ChatConversation;
 use App\Models\Document;
 use App\Models\DocumentSegment;
+use App\Models\RetrievalModelProfile;
 use App\Models\User;
 use App\Models\ChunkingProfile;
+use App\Services\AI\AiSearchService;
 use App\Services\QdrantService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -29,7 +31,9 @@ class SubmitChatMessageTest extends TestCase
     public function it_returns_a_grounded_answer_with_citations_and_persists_the_exchange(): void
     {
         [$viewer, $conversation] = $this->prepareConversation();
-        $this->prepareKnowledgeBase($viewer, 'AssistDoc applica isolamento tenant lato server e mostra citazioni verificabili.');
+        $retrievalProfile = RetrievalModelProfile::query()->where('slug', config('rag.default_retrieval_profile.slug'))->firstOrFail();
+        $aiSearchService = $this->fakeAiSearchService();
+        $this->prepareKnowledgeBase($viewer, 'AssistDoc applica isolamento tenant lato server e mostra citazioni verificabili.', (string) $retrievalProfile->id);
 
         $token = $this->login('viewer@assistdoc.local');
 
@@ -39,7 +43,12 @@ class SubmitChatMessageTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('assistantMessage.responseState', 'answered')
-            ->assertJsonPath('assistantMessage.citations.0.documentName', 'Manuale Tenant.pdf');
+            ->assertJsonPath('assistantMessage.citations.0.documentName', 'Manuale Tenant.pdf')
+            ->assertJsonPath('retrievalModelProfileId', (string) $retrievalProfile->id)
+            ->assertJsonPath('promptContract', 'askLlamaWithContext');
+
+        $this->assertCount(1, $aiSearchService->askCalls);
+        $this->assertSame($retrievalProfile->generation_model, $aiSearchService->askCalls[0]['model']);
 
         $this->assertDatabaseCount('chat_messages', 2);
         $this->assertDatabaseCount('message_citations', 1);
@@ -57,7 +66,9 @@ class SubmitChatMessageTest extends TestCase
     public function it_supports_follow_up_questions_in_the_same_thread(): void
     {
         [$viewer, $conversation] = $this->prepareConversation();
-        $this->prepareKnowledgeBase($viewer, 'AssistDoc conserva la cronologia dei messaggi in ordine cronologico.');
+        $retrievalProfile = RetrievalModelProfile::query()->where('slug', config('rag.default_retrieval_profile.slug'))->firstOrFail();
+        $aiSearchService = $this->fakeAiSearchService();
+        $this->prepareKnowledgeBase($viewer, 'AssistDoc conserva la cronologia dei messaggi in ordine cronologico.', (string) $retrievalProfile->id);
 
         $token = $this->login('viewer@assistdoc.local');
 
@@ -65,9 +76,15 @@ class SubmitChatMessageTest extends TestCase
             'question' => 'Come viene salvata la chat?',
         ])->assertOk();
 
+        $this->assertCount(1, $aiSearchService->askCalls);
+        $this->assertSame($retrievalProfile->generation_model, $aiSearchService->askCalls[0]['model']);
+
         $this->withToken($token)->postJson('/api/v1/chat/conversations/'.$conversation->id.'/messages', [
             'question' => 'E cosa succede alle citazioni?',
         ])->assertOk();
+
+        $this->assertCount(2, $aiSearchService->askCalls);
+        $this->assertSame($retrievalProfile->generation_model, $aiSearchService->askCalls[1]['model']);
 
         $this->withToken($token)
             ->getJson('/api/v1/chat/conversations/'.$conversation->id)
@@ -95,15 +112,9 @@ class SubmitChatMessageTest extends TestCase
     public function it_returns_a_failed_outcome_when_completion_cannot_finish(): void
     {
         [$viewer, $conversation] = $this->prepareConversation();
-        $this->prepareKnowledgeBase($viewer, 'AssistDoc applica isolamento tenant lato server e mostra citazioni verificabili.');
-
-        app()->bind(\App\Services\AI\AiSearchService::class, fn (): \App\Services\AI\AiSearchService => new class extends \App\Services\AI\AiSearchService
-        {
-            public function askLlamaWithContext(string $query, string $context, ?string $model = null, bool $useReasoning = true, bool $queryIsFinalPrompt = false): string
-            {
-                throw new \RuntimeException('model unavailable');
-            }
-        });
+        $retrievalProfile = RetrievalModelProfile::query()->where('slug', config('rag.default_retrieval_profile.slug'))->firstOrFail();
+        $aiSearchService = $this->fakeAiSearchService('model unavailable');
+        $this->prepareKnowledgeBase($viewer, 'AssistDoc applica isolamento tenant lato server e mostra citazioni verificabili.', (string) $retrievalProfile->id);
 
         $token = $this->login('viewer@assistdoc.local');
 
@@ -113,6 +124,9 @@ class SubmitChatMessageTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('assistantMessage.responseState', 'failed');
+
+        $this->assertCount(1, $aiSearchService->askCalls);
+        $this->assertSame($retrievalProfile->generation_model, $aiSearchService->askCalls[0]['model']);
     }
 
     #[Test]
@@ -135,18 +149,23 @@ class SubmitChatMessageTest extends TestCase
     public function it_allows_selecting_a_specific_retrieval_model_profile_for_the_chat_request(): void
     {
         [$viewer, $conversation] = $this->prepareConversation();
-        $this->prepareKnowledgeBase($viewer, 'AssistDoc applica isolamento tenant lato server e mostra citazioni verificabili.');
+        config()->set('rag.profile_preset', 'low_spec');
+        $retrievalProfile = RetrievalModelProfile::query()->where('slug', config('rag.profiles.low_spec.slug'))->firstOrFail();
+        $aiSearchService = $this->fakeAiSearchService();
+        $this->prepareKnowledgeBase($viewer, 'AssistDoc applica isolamento tenant lato server e mostra citazioni verificabili.', (string) $retrievalProfile->id);
 
         $token = $this->login('viewer@assistdoc.local');
-        $profile = \App\Models\RetrievalModelProfile::query()->where('slug', config('rag.default_retrieval_profile.slug'))->firstOrFail();
 
         $this->withToken($token)
             ->postJson('/api/v1/chat/conversations/'.$conversation->id.'/messages', [
                 'question' => 'Come funziona l\'isolamento tenant?',
             ])
             ->assertOk()
-            ->assertJsonPath('retrievalModelProfileId', (string) $profile->id)
+            ->assertJsonPath('retrievalModelProfileId', (string) $retrievalProfile->id)
             ->assertJsonPath('promptContract', 'askLlamaWithContext');
+
+        $this->assertCount(1, $aiSearchService->askCalls);
+        $this->assertSame($retrievalProfile->generation_model, $aiSearchService->askCalls[0]['model']);
     }
 
     private function prepareConversation(string $status = 'active'): array
@@ -163,8 +182,10 @@ class SubmitChatMessageTest extends TestCase
         return [$viewer, $conversation];
     }
 
-    private function prepareKnowledgeBase(User $viewer, string $content): void
+    private function prepareKnowledgeBase(User $viewer, string $content, ?string $retrievalModelProfileId = null): void
     {
+        $retrievalModelProfileId ??= (string) RetrievalModelProfile::query()->where('slug', config('rag.default_retrieval_profile.slug'))->firstOrFail()->id;
+
         $document = Document::query()->create([
             'tenant_id' => $viewer->tenant_id,
             'uploaded_by_user_id' => $viewer->id,
@@ -181,7 +202,7 @@ class SubmitChatMessageTest extends TestCase
         DocumentSegment::query()->create([
             'tenant_id' => $viewer->tenant_id,
             'document_id' => $document->id,
-            'retrieval_model_profile_id' => \App\Models\RetrievalModelProfile::query()->where('slug', config('rag.default_retrieval_profile.slug'))->firstOrFail()->id,
+            'retrieval_model_profile_id' => $retrievalModelProfileId,
             'chunking_profile_id' => ChunkingProfile::query()->where('slug', 'medium')->firstOrFail()->id,
             'segment_index' => 0,
             'content_text' => $content,
@@ -190,6 +211,44 @@ class SubmitChatMessageTest extends TestCase
             'searchable' => true,
             'activated_at' => now(),
         ]);
+    }
+
+    private function fakeAiSearchService(?string $exceptionMessage = null): object
+    {
+        $service = new class($exceptionMessage) extends AiSearchService
+        {
+            public array $askCalls = [];
+
+            public function __construct(private readonly ?string $exceptionMessage)
+            {
+            }
+
+            public function askLlamaWithContext(
+                string $query,
+                string $context,
+                ?string $model = null,
+                bool $useReasoning = true,
+                bool $queryIsFinalPrompt = false
+            ): string {
+                $this->askCalls[] = compact('query', 'context', 'model', 'useReasoning', 'queryIsFinalPrompt');
+
+                if ($this->exceptionMessage !== null) {
+                    throw new \RuntimeException($this->exceptionMessage);
+                }
+
+                return parent::askLlamaWithContext(
+                    $query,
+                    $context,
+                    $model,
+                    $useReasoning,
+                    $queryIsFinalPrompt
+                );
+            }
+        };
+
+        app()->instance(AiSearchService::class, $service);
+
+        return $service;
     }
 
     private function login(string $email): string

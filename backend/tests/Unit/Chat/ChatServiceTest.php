@@ -6,14 +6,15 @@ use App\Models\ChatConversation;
 use App\Models\ChunkingProfile;
 use App\Models\Document;
 use App\Models\DocumentSegment;
+use App\Models\RetrievalModelProfile;
 use App\Models\User;
 use App\Repositories\ChatConversationRepository;
 use App\Repositories\MessageCitationRepository;
-use App\Services\AI\ChatCompletionService;
+use App\Services\AI\AiSearchService;
 use App\Services\Audit\AuditService;
 use App\Services\Chat\ChatService;
 use App\Services\Chat\CitationService;
-use App\Services\QdrantService;
+use App\Services\Rag\RetrievalModelProfileService;
 use App\Services\Search\SemanticSearchService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -32,7 +33,6 @@ class ChatServiceTest extends TestCase
         parent::setUp();
 
         $this->seed(DatabaseSeeder::class);
-        app(QdrantService::class)->reset();
     }
 
     #[Test]
@@ -53,8 +53,8 @@ class ChatServiceTest extends TestCase
             ]],
         ]);
 
-        $completionService = Mockery::mock(ChatCompletionService::class);
-        $completionService->shouldNotReceive('answer');
+        $completionService = Mockery::mock(AiSearchService::class);
+        $completionService->shouldNotReceive('askLlamaWithContext');
 
         $service = new ChatService(
             app(ChatConversationRepository::class),
@@ -62,6 +62,7 @@ class ChatServiceTest extends TestCase
             app(CitationService::class),
             app(MessageCitationRepository::class),
             $completionService,
+            app(RetrievalModelProfileService::class),
             app(AuditService::class),
         );
 
@@ -74,44 +75,22 @@ class ChatServiceTest extends TestCase
     public function it_returns_failed_when_completion_raises_an_exception(): void
     {
         [$viewer, $conversation] = $this->prepareConversation();
-        $this->prepareKnowledgeBase($viewer);
-
-        $service = new ChatService(
-            app(ChatConversationRepository::class),
-            app(SemanticSearchService::class),
-            app(CitationService::class),
-            app(MessageCitationRepository::class),
-            new class extends ChatCompletionService
-            {
-                public function answer(string $question, array $results): array
-                {
-                    throw new \RuntimeException('llm unavailable');
-                }
-            },
-            app(AuditService::class),
+        $retrievalProfile = $this->ensureRetrievalProfile(
+            (string) config('rag.profiles.default.slug', 'qwen'),
+            (string) config('rag.profiles.default.generation_model', 'qwen3'),
         );
-
-        $response = $service->answerQuestion((string) $viewer->tenant_id, (string) $viewer->id, (string) $conversation->id, 'Come funziona AssistDoc?');
-
-        $this->assertSame('failed', $response['assistantMessage']['responseState']);
-    }
-
-    #[Test]
-    public function it_uses_the_configured_retrieval_profile_for_semantic_search(): void
-    {
-        [$viewer, $conversation] = $this->prepareConversation();
-        $profile = \App\Models\RetrievalModelProfile::query()->where('slug', config('rag.default_retrieval_profile.slug'))->firstOrFail();
+        $knowledgeBase = $this->prepareKnowledgeBase($viewer, $retrievalProfile);
 
         $searchService = Mockery::mock(SemanticSearchService::class);
         $searchService->shouldReceive('query')
             ->once()
-            ->with((string) $viewer->tenant_id, (string) $viewer->id, 'Come funziona AssistDoc?', null)
+            ->with((string) $viewer->tenant_id, (string) $viewer->id, 'Come funziona AssistDoc?', null, [], null)
             ->andReturn([
                 'query' => 'Come funziona AssistDoc?',
-                'retrievalModelProfileId' => (string) $profile->id,
+                'retrievalModelProfileId' => (string) $retrievalProfile->id,
                 'results' => [[
-                    'documentId' => '1',
-                    'documentSegmentId' => '1',
+                    'documentId' => $knowledgeBase['documentId'],
+                    'documentSegmentId' => $knowledgeBase['documentSegmentId'],
                     'documentName' => 'Manuale Tenant.pdf',
                     'quoteText' => 'AssistDoc applica isolamento tenant lato server.',
                     'sourceLabel' => 'Segmento 1',
@@ -124,7 +103,82 @@ class ChatServiceTest extends TestCase
             $searchService,
             app(CitationService::class),
             app(MessageCitationRepository::class),
-            app(ChatCompletionService::class),
+            new class extends AiSearchService
+            {
+                public function askLlamaWithContext(
+                    string $query,
+                    string $context,
+                    ?string $model = null,
+                    bool $useReasoning = true,
+                    bool $queryIsFinalPrompt = false
+                ): string
+                {
+                    throw new \RuntimeException('llm unavailable');
+                }
+            },
+            app(RetrievalModelProfileService::class),
+            app(AuditService::class),
+        );
+
+        $response = $service->answerQuestion((string) $viewer->tenant_id, (string) $viewer->id, (string) $conversation->id, 'Come funziona AssistDoc?');
+
+        $this->assertSame('failed', $response['assistantMessage']['responseState']);
+    }
+
+    #[Test]
+    public function it_uses_the_configured_retrieval_profile_for_semantic_search(): void
+    {
+        [$viewer, $conversation] = $this->prepareConversation();
+        $retrievalProfile = $this->ensureRetrievalProfile(
+            (string) config('rag.profiles.default.slug', 'qwen'),
+            (string) config('rag.profiles.default.generation_model', 'qwen3'),
+        );
+
+        $searchService = Mockery::mock(SemanticSearchService::class);
+        $searchService->shouldReceive('query')
+            ->once()
+            ->with((string) $viewer->tenant_id, (string) $viewer->id, 'Come funziona AssistDoc?', null, [], null)
+            ->andReturn([
+                'query' => 'Come funziona AssistDoc?',
+                'retrievalModelProfileId' => (string) $retrievalProfile->id,
+                'results' => [[
+                    'documentId' => '1',
+                    'documentSegmentId' => '1',
+                    'documentName' => 'Manuale Tenant.pdf',
+                    'quoteText' => 'AssistDoc applica isolamento tenant lato server.',
+                    'sourceLabel' => 'Segmento 1',
+                    'score' => 0.9,
+                ]],
+            ]);
+
+        $completionService = Mockery::mock(AiSearchService::class);
+        $completionService->shouldReceive('getGenerationModel')
+            ->once()
+            ->with(Mockery::type(\App\Models\RetrievalModelProfile::class))
+            ->andReturn($retrievalProfile->generation_model);
+        $completionService->shouldReceive('askLlamaWithContext')
+            ->once()
+            ->with(
+                'Come funziona AssistDoc?',
+                Mockery::type('string'),
+                $retrievalProfile->generation_model,
+                true,
+                false,
+            )
+            ->andReturn('AssistDoc applica isolamento tenant lato server.');
+
+        $citationService = Mockery::mock(CitationService::class);
+        $citationService->shouldReceive('fromSearchResults')
+            ->once()
+            ->andReturn([]);
+
+        $service = new ChatService(
+            app(ChatConversationRepository::class),
+            $searchService,
+            $citationService,
+            app(MessageCitationRepository::class),
+            $completionService,
+            app(RetrievalModelProfileService::class),
             app(AuditService::class),
         );
 
@@ -135,7 +189,7 @@ class ChatServiceTest extends TestCase
             'Come funziona AssistDoc?',
         );
 
-        $this->assertSame((string) $profile->id, $response['retrievalModelProfileId']);
+        $this->assertSame((string) $retrievalProfile->id, $response['retrievalModelProfileId']);
         $this->assertSame('answered', $response['assistantMessage']['responseState']);
     }
 
@@ -153,7 +207,7 @@ class ChatServiceTest extends TestCase
         return [$viewer, $conversation];
     }
 
-    private function prepareKnowledgeBase(User $viewer): void
+    private function prepareKnowledgeBase(User $viewer, RetrievalModelProfile $retrievalProfile): array
     {
         $document = Document::query()->create([
             'tenant_id' => $viewer->tenant_id,
@@ -168,15 +222,37 @@ class ChatServiceTest extends TestCase
             'indexed_at' => now(),
         ]);
 
-        DocumentSegment::query()->create([
+        $segment = DocumentSegment::query()->create([
             'tenant_id' => $viewer->tenant_id,
             'document_id' => $document->id,
-            'retrieval_model_profile_id' => \App\Models\RetrievalModelProfile::query()->where('slug', config('rag.default_retrieval_profile.slug'))->firstOrFail()->id,
+            'retrieval_model_profile_id' => $retrievalProfile->id,
             'chunking_profile_id' => ChunkingProfile::query()->where('slug', 'medium')->firstOrFail()->id,
             'segment_index' => 0,
             'content_text' => 'AssistDoc applica isolamento tenant lato server.',
             'source_label' => 'Segmento 1',
             'searchable' => true,
         ]);
+
+        return [
+            'documentId' => (string) $document->id,
+            'documentSegmentId' => (string) $segment->id,
+        ];
+    }
+
+    private function ensureRetrievalProfile(string $slug, string $generationModel): RetrievalModelProfile
+    {
+        return RetrievalModelProfile::query()->updateOrCreate(
+            ['slug' => $slug],
+            [
+                'name' => $slug,
+                'generation_model' => $generationModel,
+                'embedding_model' => 'qwen3-embedding',
+                'tokenizer_key' => 'qwen3',
+                'token_window' => 40000,
+                'embedding_dimensions' => 4096,
+                'available_for_new_runs' => true,
+                'effective_from' => now(),
+            ],
+        );
     }
 }

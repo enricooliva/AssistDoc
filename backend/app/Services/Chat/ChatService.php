@@ -9,6 +9,7 @@ use App\Repositories\ChatConversationRepository;
 use App\Repositories\MessageCitationRepository;
 use App\Services\AI\AiSearchService;
 use App\Services\Audit\AuditService;
+use App\Services\Rag\RetrievalModelProfileService;
 use App\Services\Search\SemanticSearchService;
 use Illuminate\Support\Facades\DB;
 
@@ -20,6 +21,7 @@ class ChatService
         private readonly CitationService $citationService,
         private readonly MessageCitationRepository $messageCitationRepository,
         private readonly AiSearchService $aiSearchService,
+        private readonly RetrievalModelProfileService $retrievalModelProfileService,
         private readonly AuditService $auditService,
     ) {
     }
@@ -172,11 +174,15 @@ class ChatService
             $outcome = 'insufficient_information';
         } else {
             try {
+                $retrievalProfile = $this->retrievalModelProfileService->resolve(
+                    $search['retrievalModelProfileId'] ?? null,
+                );
+
                 $assistantPayload = [
                     'body' => $this->aiSearchService->askLlamaWithContext(
                         $question,
                         $this->buildContext($supportingResults),
-                        null,
+                        $this->aiSearchService->getGenerationModel($retrievalProfile),
                         true,
                         false,
                     ),
