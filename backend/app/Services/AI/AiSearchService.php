@@ -2,6 +2,7 @@
 
 namespace App\Services\AI;
 
+use App\Models\RetrievalModelProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -15,7 +16,7 @@ class AiSearchService
     public function getGenerationModel(?RetrievalModelProfile $profile = null): string
     {
         return $profile?->generation_model
-            ?? (string) config('rag.default_retrieval_profile.generation_model', config('services.ollama.generation_model', 'llama3.2'));
+            ?? (string) config('rag.default_retrieval_profile.generation_model', 'qwen3');
     }
 
     public function getGenerationEndpoint(?RetrievalModelProfile $profile = null): string

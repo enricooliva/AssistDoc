@@ -54,7 +54,7 @@ class EmbeddingService
     public function getEmbeddingModel(?RetrievalModelProfile $profile = null): string
     {
         return $profile?->embedding_model
-            ?? (string) config('rag.default_retrieval_profile.embedding_model', config('services.ollama.embedding_model', 'qwen3-embedding'));
+            ?? (string) config('rag.default_retrieval_profile.embedding_model', 'qwen3-embedding');
     }
 
     public function getEmbeddingEndpoint(?RetrievalModelProfile $profile = null): string
@@ -65,7 +65,7 @@ class EmbeddingService
     public function getEmbeddingDimensions(?RetrievalModelProfile $profile = null): int
     {
         return $profile?->embedding_dimensions
-            ?? (int) config('rag.default_retrieval_profile.embedding_dimensions', config('services.ollama.embedding_dimensions', 1024));
+            ?? (int) config('rag.default_retrieval_profile.embedding_dimensions', 4096);
     }
 
     public function getEmbeddingMaxInputChars(?RetrievalModelProfile $profile = null): int
