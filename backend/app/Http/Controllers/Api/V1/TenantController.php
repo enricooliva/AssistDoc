@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\TenantIndexRequest;
 use App\Http\Requests\TenantProvisionRequest;
+use App\Http\Requests\TenantUpdateRequest;
 use App\Http\Requests\TenantUserProvisionRequest;
 use App\Services\Tenant\TenantAdministrationService;
 use Illuminate\Http\JsonResponse;
@@ -39,6 +40,18 @@ class TenantController extends Controller
     public function show(Request $request, string $tenantId): JsonResponse
     {
         $result = $this->tenants->showTenant($tenantId);
+
+        if ($result === null) {
+            return $this->errorResponse('NOT_FOUND', 'Tenant non trovato.', 404);
+        }
+
+        return response()->json($result);
+    }
+
+    public function update(TenantUpdateRequest $request, string $tenantId): JsonResponse
+    {
+        $actor = $request->attributes->get('auth_user');
+        $result = $this->tenants->updateTenant($actor, $tenantId, $request->validated());
 
         if ($result === null) {
             return $this->errorResponse('NOT_FOUND', 'Tenant non trovato.', 404);

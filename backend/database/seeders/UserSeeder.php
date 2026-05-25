@@ -72,6 +72,35 @@ class UserSeeder extends Seeder
 
         $tenantB = Tenant::query()->where('slug', 'tenant-b')->first();
         $tenantC = Tenant::query()->where('slug', 'tenant-c')->first();
+        $ssiastoria = Tenant::query()->where('slug', 'ssia-storia')->first();
+
+        if ($ssiastoria) {
+              $operator = User::query()->updateOrCreate(
+                ['email' => 'giacomo@assistdoc.local'],
+                [
+                    'tenant_id' => $ssiastoria->id,
+                    'name' => 'Giacomo',
+                    'password' => Hash::make('Giacomo2003!'),
+                    'role' => 'operator',
+                    'auth_provider' => 'local',
+                    'status' => 'active',
+                ]
+            );
+            $this->syncAccessMethods($operator, ['company_account', 'password']);
+
+               $operator = User::query()->updateOrCreate(
+                ['email' => 'alessandra@assistdoc.local'],
+                [
+                    'tenant_id' => $ssiastoria->id,
+                    'name' => 'Alessandra',
+                    'password' => Hash::make('Alessandra1977!'),
+                    'role' => 'operator',
+                    'auth_provider' => 'local',
+                    'status' => 'active',
+                ]
+            );
+            $this->syncAccessMethods($operator, ['company_account', 'password']);
+        }
 
         if ($tenantB) {
             $viewerB = User::query()->updateOrCreate(

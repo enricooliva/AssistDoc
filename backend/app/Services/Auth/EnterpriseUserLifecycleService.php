@@ -35,6 +35,92 @@ class EnterpriseUserLifecycleService
         return ['user' => $this->users->mapEnterpriseUser($user)];
     }
 
+    public function updateUser(array $actor, string $userId, array $attributes): ?array
+    {
+        $user = $this->users->findById($userId);
+
+        if (! $user) {
+            return null;
+        }
+
+        if ((string) $actor['role'] === 'tenant-admin' && (string) $user->tenant_id !== (string) $actor['tenant_id']) {
+            return $this->authorizationService->denyUserUpdate($actor, 'tenant_scope_mismatch', [
+                'target_user_id' => (string) $user->id,
+                'target_tenant_id' => (string) $user->tenant_id,
+            ]);
+        }
+
+        $currentRole = $user->roleAssignment?->role ?? $user->role;
+
+        if ((string) $actor['role'] !== 'super-admin' && $currentRole === 'super-admin') {
+            return $this->authorizationService->denyUserUpdate($actor, 'super_admin_edit_not_allowed', [
+                'target_user_id' => (string) $user->id,
+                'target_role' => $currentRole,
+            ]);
+        }
+
+        if ((string) $actor['role'] !== 'super-admin' && (string) $attributes['tenant_id'] !== (string) $actor['tenant_id']) {
+            return $this->authorizationService->denyUserUpdate($actor, 'tenant_reassignment_not_allowed', [
+                'target_user_id' => (string) $user->id,
+                'requested_tenant_id' => (string) $attributes['tenant_id'],
+            ]);
+        }
+
+        if ((string) $actor['role'] !== 'super-admin' && (string) $attributes['role'] === 'super-admin') {
+            return $this->authorizationService->denyUserUpdate($actor, 'super_admin_assignment_not_allowed', [
+                'target_user_id' => (string) $user->id,
+                'requested_role' => $attributes['role'],
+            ]);
+        }
+
+        $before = [
+            'tenant_id' => (string) $user->tenant_id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->roleAssignment?->role ?? $user->role,
+            'status' => $user->status,
+            'access_methods' => $user->accessMethods->filter(fn ($method) => $method->enabled)->pluck('method')->values()->all(),
+            'mfa_policy' => $user->mfa_policy,
+        ];
+
+        $updatedUser = DB::transaction(function () use ($actor, $attributes, $user) {
+            $updated = $this->users->updateEnterpriseUser($user, $attributes);
+
+            $this->users->syncAccessMethods($updated, $attributes['access_methods']);
+            $this->roleAssignments->syncForUser($updated, $attributes['tenant_id'], $attributes['role'], $actor['id']);
+
+            return $this->users->findById($updated->id);
+        });
+
+        if (! $updatedUser) {
+            return null;
+        }
+
+        $this->auditService->record(
+            'user.updated',
+            (string) $updatedUser->tenant_id,
+            $actor['id'],
+            [
+                'updated_user_id' => (string) $updatedUser->id,
+                'before' => $before,
+                'after' => [
+                    'tenant_id' => (string) $updatedUser->tenant_id,
+                    'name' => $updatedUser->name,
+                    'email' => $updatedUser->email,
+                    'role' => $updatedUser->roleAssignment?->role ?? $updatedUser->role,
+                    'status' => $updatedUser->status,
+                    'access_methods' => $updatedUser->accessMethods->filter(fn ($method) => $method->enabled)->pluck('method')->values()->all(),
+                    'mfa_policy' => $updatedUser->mfa_policy,
+                ],
+            ],
+            'success',
+            'user',
+            $updatedUser->id
+        );
+
+        return ['user' => $this->users->mapEnterpriseUser($updatedUser)];
+    }
+
     public function createUser(string $actorTenantId, string $actorUserId, array $attributes): array
     {
         $user = DB::transaction(function () use ($actorTenantId, $actorUserId, $attributes) {

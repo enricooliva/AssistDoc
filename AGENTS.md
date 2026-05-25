@@ -58,3 +58,12 @@ Rules of thumb:
 - Follow standard Laravel and Angular conventions.
 - Keep naming consistent between config keys, env vars, services, and tests.
 - Avoid duplicate aliases unless they are needed for backward compatibility.
+
+## Active Technologies
+- TypeScript 5.x, Angular 18 in the current frontend package + Bootstrap 5, Bootstrap Icons, `@ngx-formly/bootstrap`, ng-bootstrap for overlay/navigation primitives, existing Angular router and standalone components (011-responsive-layout)
+- N/A for this feature; layout state is local to the UI (011-responsive-layout)
+- PHP 8.3 (Laravel 12), TypeScript 5.x (Angular SPA) + Laravel API middleware and controllers, Angular reactive forms, Bootstrap, ng-bootstrap, existing `EnterpriseUserLifecycleService`, existing chat/document services (012-admin-tenant-user-edit)
+- Existing PostgreSQL-style relational storage for users, tenants, role assignments, access methods, and audit events; no new tables expected (012-admin-tenant-user-edit)
+
+## Recent Changes
+- 011-responsive-layout: Added TypeScript 5.x, Angular 18 in the current frontend package + Bootstrap 5, Bootstrap Icons, `@ngx-formly/bootstrap`, ng-bootstrap for overlay/navigation primitives, existing Angular router and standalone components

@@ -1,18 +1,37 @@
 <?php
 
 return [
-    'default_retrieval_profile' => [
-        'name' => 'Qwen',
-        'slug' => 'qwen',
+    'profile_preset' => env('RAG_PROFILE_PRESET', 'default'),
 
-        'generation_model' => env('OLLAMA_GENERATION_MODEL', 'qwen3'),
-        'embedding_model' => env('OLLAMA_EMBEDDING_MODEL', 'qwen3-embedding'),
+    'profiles' => [
+        'default' => [
+            'name' => 'Qwen',
+            'slug' => 'qwen',
 
-        'tokenizer_key' => 'qwen3',
+            'generation_model' => env('OLLAMA_GENERATION_MODEL', 'qwen3'),
+            'embedding_model' => env('OLLAMA_EMBEDDING_MODEL', 'qwen3-embedding'),
 
-        'token_window' => 40000,
-        'embedding_dimensions' => (int) env('OLLAMA_EMBEDDING_DIMENSIONS', 4096),
+            'tokenizer_key' => 'qwen3',
 
-        'available_for_new_runs' => true,
+            'token_window' => 40000,
+            'embedding_dimensions' => (int) env('OLLAMA_EMBEDDING_DIMENSIONS', 4096),
+
+            'available_for_new_runs' => true,
+        ],
+
+        'low_spec' => [
+            'name' => env('OLLAMA_LOW_SPEC_NAME', 'Qwen PC Lenti'),
+            'slug' => env('OLLAMA_LOW_SPEC_SLUG', 'qwen-pc-lenti'),
+
+            'generation_model' => env('OLLAMA_LOW_SPEC_GENERATION_MODEL', 'qwen3:1.7b'),
+            'embedding_model' => env('OLLAMA_LOW_SPEC_EMBEDDING_MODEL', 'qwen3-embedding:0.6b'),
+
+            'tokenizer_key' => env('OLLAMA_LOW_SPEC_TOKENIZER_KEY', 'qwen3'),
+
+            'token_window' => (int) env('OLLAMA_LOW_SPEC_TOKEN_WINDOW', 32000),
+            'embedding_dimensions' => (int) env('OLLAMA_LOW_SPEC_EMBEDDING_DIMENSIONS', 1024),
+
+            'available_for_new_runs' => true,
+        ],
     ],
 ];

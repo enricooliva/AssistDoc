@@ -90,6 +90,26 @@ class UserRepository
         return $user->refresh()->load(['tenant', 'roleAssignment', 'accessMethods', 'deleter']);
     }
 
+    public function updateEnterpriseUser(User $user, array $attributes): User
+    {
+        $user->fill([
+            'tenant_id' => $attributes['tenant_id'],
+            'name' => $attributes['full_name'],
+            'email' => mb_strtolower($attributes['email']),
+            'role' => $attributes['role'],
+            'status' => $attributes['status'],
+            'auth_provider' => in_array('password', $attributes['access_methods'], true) ? 'local' : 'company_account',
+            'mfa_policy' => $attributes['mfa_policy'],
+        ]);
+
+        if (! empty($attributes['password'])) {
+            $user->password = $attributes['password'];
+            $user->password_reset_required = false;
+        }
+
+        return $this->save($user);
+    }
+
     public function softDelete(User $user, string|int $deletedByUserId): User
     {
         $user->deleted_by_user_id = $deletedByUserId;

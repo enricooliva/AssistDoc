@@ -8,6 +8,8 @@ import {
   TenantMembershipSummary,
   TenantProvisionPayload,
   TenantProvisionResponse,
+  TenantUpdatePayload,
+  TenantUpdateResponse,
   TenantUserProvisionPayload,
   TenantUserProvisionResponse,
 } from './tenant-admin.models';
@@ -93,6 +95,22 @@ export class TenantAdminApiService {
       return response;
     } catch (error) {
       throw new Error(this.extractErrorMessage(error, 'Creazione tenant non riuscita.'));
+    }
+  }
+
+  async updateTenant(tenantId: string, payload: TenantUpdatePayload): Promise<TenantUpdateResponse> {
+    try {
+      const response = await firstValueFrom(
+        this.http.patch<TenantUpdateResponse>(apiUrl(`/api/v1/tenants/${tenantId}`), payload),
+      );
+
+      this.feedback.set('Tenant aggiornato correttamente.');
+      this.selectedTenantId.set(tenantId);
+      await this.load(this.page());
+
+      return response;
+    } catch (error) {
+      throw new Error(this.extractErrorMessage(error, 'Aggiornamento tenant non riuscito.'));
     }
   }
 

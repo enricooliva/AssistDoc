@@ -24,7 +24,12 @@ class ModelProfileListTest extends TestCase
             ->getJson('/api/v1/rag/model-profiles')
             ->assertNotFound();
 
-        $this->assertSame('qwen', config('rag.default_retrieval_profile.slug'));
-        $this->assertSame('Qwen', config('rag.default_retrieval_profile.name'));
+        $this->assertSame('default', config('rag.profile_preset'));
+        $this->assertSame('qwen', config('rag.profiles.default.slug'));
+        $this->assertSame('Qwen', config('rag.profiles.default.name'));
+        $this->assertSame('qwen-pc-lenti', config('rag.profiles.low_spec.slug'));
+        $this->assertSame('qwen3:1.7b', config('rag.profiles.low_spec.generation_model'));
+        $this->assertSame('qwen3-embedding:0.6b', config('rag.profiles.low_spec.embedding_model'));
+        $this->assertSame(1024, config('rag.profiles.low_spec.embedding_dimensions'));
     }
 }

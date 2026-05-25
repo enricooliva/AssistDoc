@@ -50,4 +50,19 @@ class AuthorizationService
             'reason' => $reason,
         ];
     }
+
+    public function denyUserUpdate(array $user, string $reason, array $context = []): array
+    {
+        $this->auditService->record('user.update_denied', $user['tenant_id'], $user['id'], array_merge([
+            'reason' => $reason,
+        ], $context), 'denied', 'user', $context['target_user_id'] ?? null);
+
+        return [
+            'status' => 'update_denied',
+            'error' => [
+                'code' => 'ACCESS_DENIED',
+                'message' => 'L\'account non è autorizzato a completare questa operazione.',
+            ],
+        ];
+    }
 }

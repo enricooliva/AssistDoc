@@ -23,6 +23,17 @@
   transition: opacity 180ms ease, transform 180ms ease;
 }
 
+.shell__sidebar--inline {
+  min-height: 100vh;
+}
+
+.shell__sidebar-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-height: 0;
+}
+
 .shell--collapsed .shell__sidebar {
   opacity: 0;
   transform: translateX(-24px);
@@ -74,6 +85,10 @@
 
 .shell__nav-item--active {
   background: rgba(255, 255, 255, 0.1);
+}
+
+.shell__close-button {
+  align-self: flex-start;
 }
 
 .shell__main {

@@ -13,7 +13,8 @@ class RetrievalModelProfileService
 
     public function defaultAvailable(): RetrievalModelProfile
     {
-        $slug = (string) config('rag.default_retrieval_profile.slug', 'qwen');
+        $profileConfig = $this->selectedProfileConfig();
+        $slug = (string) ($profileConfig['slug'] ?? 'qwen');
         $profile = $this->repository->findBySlug($slug);
 
         if (! $profile) {
@@ -36,5 +37,18 @@ class RetrievalModelProfileService
         }
 
         return $profile;
+    }
+
+    public function selectedProfileConfig(): array
+    {
+        $preset = (string) config('rag.profile_preset', 'default');
+        $profiles = (array) config('rag.profiles', []);
+        $selected = $profiles[$preset] ?? $profiles['default'] ?? null;
+
+        if (! is_array($selected)) {
+            throw new \RuntimeException('Nessun profilo di retrieval configurato.');
+        }
+
+        return $selected;
     }
 }

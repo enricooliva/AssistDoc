@@ -1,14 +1,16 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { NgbModal, NgbModalModule } from '@ng-bootstrap/ng-bootstrap';
 import { AuthService } from '../../core/auth/auth.service';
 import { TenantAdminApiService } from './tenant-admin-api.service';
-import { TenantProvisionPayload, TenantUserProvisionPayload } from './tenant-admin.models';
+import { TenantMembershipSummary, TenantProvisionPayload, TenantUserProvisionPayload } from './tenant-admin.models';
+import { TenantEditDialogComponent } from './tenant-edit-dialog.component';
 
 @Component({
   selector: 'app-tenant-admin-page',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, NgbModalModule, TenantEditDialogComponent],
   template: `
     <section class="tenant-admin-page">
       <header class="tenant-admin-page__header">
@@ -162,6 +164,9 @@ import { TenantProvisionPayload, TenantUserProvisionPayload } from './tenant-adm
             <h3>Dettaglio tenant</h3>
             <p>{{ selected.tenant.name }} · {{ selected.tenant.status }}</p>
           </div>
+          <button class="btn btn-outline-primary btn-sm" type="button" (click)="editTenant(selected.tenant)">
+            Modifica tenant
+          </button>
         </div>
         <div class="tenant-admin-page__members">
           <article *ngFor="let member of selected.members" class="tenant-admin-page__member">
@@ -198,6 +203,7 @@ import { TenantProvisionPayload, TenantUserProvisionPayload } from './tenant-adm
 })
 export class TenantAdminPageComponent {
   private readonly authService = inject(AuthService);
+  private readonly modal = inject(NgbModal);
   readonly api = inject(TenantAdminApiService);
   readonly saving = signal(false);
   readonly error = signal('');
@@ -279,6 +285,15 @@ export class TenantAdminPageComponent {
 
   async changePage(delta: number): Promise<void> {
     await this.api.load(this.api.page() + delta);
+  }
+
+  editTenant(tenant: TenantMembershipSummary): void {
+    const modalRef = this.modal.open(TenantEditDialogComponent, {
+      centered: true,
+      size: 'lg',
+    });
+    modalRef.componentInstance.tenant = tenant;
+    void modalRef.result.catch(() => undefined);
   }
 
   toggleTenantAccess(method: 'company_account' | 'password', enabled: boolean): void {

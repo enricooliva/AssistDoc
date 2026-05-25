@@ -23,6 +23,12 @@ export interface TenantDetailResponse {
   members: EnterpriseUserSummary[];
 }
 
+export interface TenantUpdatePayload {
+  tenant_name: string;
+  tenant_slug: string;
+  status: TenantMembershipSummary['status'];
+}
+
 export interface TenantProvisionPayload {
   tenant_name: string;
   tenant_slug: string;
@@ -38,6 +44,10 @@ export interface TenantProvisionPayload {
 export interface TenantProvisionResponse {
   tenant: TenantMembershipSummary;
   initial_admin: EnterpriseUserSummary;
+}
+
+export interface TenantUpdateResponse {
+  tenant: TenantMembershipSummary;
 }
 
 export interface TenantUserProvisionPayload {

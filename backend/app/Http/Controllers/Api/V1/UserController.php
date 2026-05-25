@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\DeleteEnterpriseUserRequest;
 use App\Http\Requests\EnterpriseUserIndexRequest;
+use App\Http\Requests\EnterpriseUserUpdateRequest;
 use App\Http\Requests\EnterpriseUserStatusUpdateRequest;
 use App\Http\Requests\EnterpriseUserStoreRequest;
 use App\Services\Auth\EnterpriseUserLifecycleService;
@@ -46,6 +47,26 @@ class UserController extends Controller
 
         if ($result === null) {
             return $this->errorResponse('NOT_FOUND', 'Utente non trovato.', 404);
+        }
+
+        return response()->json($result);
+    }
+
+    public function update(EnterpriseUserUpdateRequest $request, string $userId): JsonResponse
+    {
+        $user = $request->attributes->get('auth_user');
+        $result = $this->lifecycleService->updateUser($user, $userId, $request->validated());
+
+        if ($result === null) {
+            return $this->errorResponse('NOT_FOUND', 'Utente non trovato.', 404);
+        }
+
+        if (($result['status'] ?? null) === 'update_denied') {
+            return $this->errorResponse(
+                $result['error']['code'] ?? 'ACCESS_DENIED',
+                $result['error']['message'] ?? 'L\'account non è autorizzato a completare questa operazione.',
+                403
+            );
         }
 
         return response()->json($result);

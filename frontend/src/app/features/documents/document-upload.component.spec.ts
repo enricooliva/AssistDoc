@@ -8,7 +8,7 @@ import { DocumentUploadComponent } from './document-upload.component';
 import { InputFileComponent } from '../../shared/dynamic-form/input-file/input-file.component';
 
 class AuthServiceStub {
-  role: 'super-admin' | 'operator' | 'viewer' = 'operator';
+  role: 'super-admin' | 'tenant-admin' | 'operator' | 'viewer' = 'operator';
 
   hasAnyRole(roles: string[]): boolean {
     return roles.includes(this.role);
@@ -70,6 +70,14 @@ describe('DocumentUploadComponent', () => {
     fixture = TestBed.createComponent(DocumentUploadComponent);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain('Solo gli utenti con ruolo operatore o super-admin');
+    expect(fixture.nativeElement.textContent).toContain('Solo gli utenti con ruolo tenant-admin, operatore o super-admin');
+  });
+
+  it('allows tenant-admin users to upload documents', () => {
+    authService.role = 'tenant-admin';
+    fixture = TestBed.createComponent(DocumentUploadComponent);
+    fixture.detectChanges();
+
+    expect((fixture.componentInstance as DocumentUploadComponent).canUpload()).toBeTrue();
   });
 });

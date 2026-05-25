@@ -143,4 +143,13 @@ describe('ChatPageComponent', () => {
 
     expect(component.composerModel().tags).toEqual(['privacy', 'tenant']);
   });
+
+  it('keeps the history rail and message list in scrollable containers', () => {
+    const history = fixture.nativeElement.querySelector('.chat-layout__history') as HTMLElement;
+    const messages = fixture.nativeElement.querySelector('.chat-layout__messages') as HTMLElement;
+
+    expect(history.classList.contains('overflow-auto')).toBeTrue();
+    expect(messages.classList.contains('overflow-auto')).toBeTrue();
+    expect(messages.classList.contains('flex-grow-1')).toBeTrue();
+  });
 });

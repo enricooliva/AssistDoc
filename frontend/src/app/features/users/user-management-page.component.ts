@@ -1,14 +1,16 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { NgbModal, NgbModalModule } from '@ng-bootstrap/ng-bootstrap';
 import { AuthService } from '../../core/auth/auth.service';
-import { EnterpriseUserCreatePayload } from './user-management.models';
+import { UserEditDialogComponent } from './user-edit-dialog.component';
+import { EnterpriseUserCreatePayload, EnterpriseUserSummary } from './user-management.models';
 import { UserManagementApiService } from './user-management-api.service';
 
 @Component({
   selector: 'app-user-management-page',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, NgbModalModule, UserEditDialogComponent],
   template: `
     <section class="users-page">
       <form class="users-page__form" #form="ngForm" (ngSubmit)="createUser()">
@@ -107,6 +109,7 @@ import { UserManagementApiService } from './user-management-api.service';
             <small *ngIf="user.lockout">Bloccato fino a {{ user.lockout.locked_until || 'data non disponibile' }}</small>
           </div>
           <div class="users-page__actions">
+            <button *ngIf="canEditUser(user)" class="btn btn-outline-primary btn-sm" type="button" (click)="editUser(user)">Modifica</button>
             <button class="btn btn-outline-primary btn-sm" type="button" (click)="setStatus(user.id, 'active')">Attiva</button>
             <button class="btn btn-outline-warning btn-sm" type="button" (click)="setStatus(user.id, 'suspended')">Sospendi</button>
             <button class="btn btn-outline-danger btn-sm" type="button" (click)="setStatus(user.id, 'deactivated')">Disattiva</button>
@@ -151,6 +154,7 @@ import { UserManagementApiService } from './user-management-api.service';
 })
 export class UserManagementPageComponent {
   private readonly authService = inject(AuthService);
+  private readonly modal = inject(NgbModal);
   readonly api = inject(UserManagementApiService);
   readonly submitting = signal(false);
   readonly error = signal('');
@@ -177,6 +181,10 @@ export class UserManagementPageComponent {
 
   hasActiveSearch(): boolean {
     return this.searchQuery.trim().length > 0;
+  }
+
+  canEditUser(user: EnterpriseUserSummary): boolean {
+    return this.authService.session()?.user.role === 'super-admin' || user.role !== 'super-admin';
   }
 
   async searchUsers(): Promise<void> {
@@ -270,6 +278,24 @@ export class UserManagementPageComponent {
       await this.api.delete(userId);
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : 'Eliminazione utente non riuscita.');
+    }
+  }
+
+  async editUser(user: EnterpriseUserSummary): Promise<void> {
+    this.error.set('');
+
+    const modalRef = this.modal.open(UserEditDialogComponent, {
+      size: 'lg',
+      centered: true,
+      backdrop: 'static',
+    });
+
+    modalRef.componentInstance.user = user;
+
+    try {
+      await modalRef.result;
+    } catch {
+      return;
     }
   }
 

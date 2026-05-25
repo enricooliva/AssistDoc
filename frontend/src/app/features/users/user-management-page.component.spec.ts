@@ -1,6 +1,8 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { AuthService } from '../../core/auth/auth.service';
+import { EnterpriseUserSummary } from './user-management.models';
 import { UserManagementApiService } from './user-management-api.service';
 import { UserManagementPageComponent } from './user-management-page.component';
 
@@ -15,6 +17,20 @@ class UserManagementApiServiceStub {
   readonly load = jasmine.createSpy('load').and.resolveTo();
   readonly search = jasmine.createSpy('search').and.resolveTo();
   readonly create = jasmine.createSpy('create').and.resolveTo();
+  readonly update = jasmine.createSpy('update').and.resolveTo({
+    id: '2',
+    full_name: 'Mario Aggiornato',
+    email: 'mario.updated@example.test',
+    tenant: {
+      id: 'tenant-1',
+      name: 'AssistDoc Demo',
+      slug: 'assistdoc-demo',
+    },
+    role: 'viewer',
+    status: 'active',
+    access_methods: ['company_account'],
+    mfa_policy: 'optional',
+  });
   readonly updateStatus = jasmine.createSpy('updateStatus').and.resolveTo();
   readonly unlock = jasmine.createSpy('unlock').and.resolveTo();
   readonly delete = jasmine.createSpy('delete').and.resolveTo({
@@ -44,19 +60,31 @@ class AuthServiceStub {
   });
 }
 
+class ModalRefStub {
+  readonly componentInstance: Record<string, unknown> = {};
+  readonly result = Promise.resolve();
+}
+
+class NgbModalStub {
+  readonly open = jasmine.createSpy('open').and.callFake(() => new ModalRefStub() as never);
+}
+
 describe('UserManagementPageComponent', () => {
   let fixture: ComponentFixture<UserManagementPageComponent>;
   let component: UserManagementPageComponent;
   let api: UserManagementApiServiceStub;
+  let modal: NgbModalStub;
 
   beforeEach(async () => {
     spyOn(window, 'confirm').and.returnValue(true);
+    modal = new NgbModalStub();
 
     await TestBed.configureTestingModule({
       imports: [UserManagementPageComponent],
       providers: [
         { provide: UserManagementApiService, useClass: UserManagementApiServiceStub },
         { provide: AuthService, useClass: AuthServiceStub },
+        { provide: NgbModal, useValue: modal },
       ],
     }).compileComponents();
 
@@ -109,5 +137,31 @@ describe('UserManagementPageComponent', () => {
 
     expect(window.confirm).toHaveBeenCalled();
     expect(api.delete).toHaveBeenCalledWith('2');
+  });
+
+  it('opens the edit dialog for an existing user', async () => {
+    const user: EnterpriseUserSummary = {
+      id: '2',
+      full_name: 'Mario Rossi',
+      email: 'mario@example.test',
+      tenant: {
+        id: 'tenant-1',
+        name: 'AssistDoc Demo',
+        slug: 'assistdoc-demo',
+      },
+      role: 'viewer',
+      status: 'active',
+      access_methods: ['company_account'],
+      mfa_policy: 'optional',
+      lockout: null,
+      deleted_at: null,
+      deleted_by: null,
+    };
+
+    await component.editUser(user);
+
+    expect(modal.open).toHaveBeenCalled();
+    const modalRef = modal.open.calls.mostRecent().returnValue as unknown as ModalRefStub;
+    expect(modalRef.componentInstance['user']).toBe(user);
   });
 });

@@ -2,7 +2,14 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { apiUrl } from '../../core/api/api-url';
-import { DeleteEnterpriseUserResponse, EnterpriseUserCreatePayload, EnterpriseUserListResponse, EnterpriseUserSummary } from './user-management.models';
+import {
+  DeleteEnterpriseUserResponse,
+  EnterpriseUserCreatePayload,
+  EnterpriseUserListResponse,
+  EnterpriseUserMutationResponse,
+  EnterpriseUserSummary,
+  EnterpriseUserUpdatePayload,
+} from './user-management.models';
 
 @Injectable({ providedIn: 'root' })
 export class UserManagementApiService {
@@ -55,6 +62,21 @@ export class UserManagementApiService {
       await this.load(1, this.query());
     } catch (error) {
       throw new Error(this.extractErrorMessage(error, 'Provisioning utente non riuscito.'));
+    }
+  }
+
+  async update(userId: string, payload: EnterpriseUserUpdatePayload): Promise<EnterpriseUserSummary> {
+    try {
+      const response = await firstValueFrom(
+        this.http.patch<EnterpriseUserMutationResponse>(apiUrl(`/api/v1/users/${userId}`), payload),
+      );
+
+      this.feedback.set('Utente aggiornato correttamente.');
+      await this.load(this.page(), this.query());
+
+      return response.user;
+    } catch (error) {
+      throw new Error(this.extractErrorMessage(error, 'Aggiornamento utente non riuscito.'));
     }
   }
 

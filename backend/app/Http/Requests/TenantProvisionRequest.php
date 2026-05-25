@@ -4,12 +4,22 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Str;
 
 class TenantProvisionRequest extends FormRequest
 {
     public function authorize(): bool
     {
         return true;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('tenant_slug')) {
+            $this->merge([
+                'tenant_slug' => Str::slug((string) $this->input('tenant_slug')),
+            ]);
+        }
     }
 
     public function rules(): array

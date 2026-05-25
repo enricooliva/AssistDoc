@@ -38,6 +38,52 @@ class TenantAdministrationService
         return $this->tenants->mapTenantDetail($tenant, $this->users);
     }
 
+    public function updateTenant(array $actor, string $tenantId, array $attributes): ?array
+    {
+        $tenant = $this->tenants->findSummaryById($tenantId);
+
+        if (! $tenant) {
+            return null;
+        }
+
+        $before = [
+            'name' => $tenant->name,
+            'slug' => $tenant->slug,
+            'status' => $tenant->status,
+        ];
+
+        $tenant->fill([
+            'name' => $attributes['tenant_name'],
+            'slug' => Str::slug($attributes['tenant_slug']),
+            'status' => $attributes['status'],
+        ]);
+
+        $tenant = $this->tenants->save($tenant);
+        $summary = $this->tenants->findSummaryById((string) $tenant->id) ?? $tenant;
+
+        $this->auditService->record(
+            'tenant.updated',
+            (string) $actor['tenant_id'],
+            (string) $actor['id'],
+            [
+                'tenant_id' => (string) $tenant->id,
+                'before' => $before,
+                'after' => [
+                    'name' => $summary->name,
+                    'slug' => $summary->slug,
+                    'status' => $summary->status,
+                ],
+            ],
+            'success',
+            'tenant',
+            $summary->id
+        );
+
+        return [
+            'tenant' => $this->tenants->mapTenantSummary($summary),
+        ];
+    }
+
     public function createTenant(array $actor, array $attributes): array
     {
         $result = DB::transaction(function () use ($actor, $attributes): array {

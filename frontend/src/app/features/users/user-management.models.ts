@@ -39,6 +39,21 @@ export interface EnterpriseUserCreatePayload {
   password?: string;
 }
 
+export interface EnterpriseUserUpdatePayload {
+  full_name: string;
+  email: string;
+  tenant_id: string;
+  role: UserRole;
+  status: EnterpriseUserCreatePayload['status'] | 'reset_pending';
+  access_methods: Array<'company_account' | 'password'>;
+  mfa_policy: MfaPolicy;
+  password?: string;
+}
+
+export interface EnterpriseUserMutationResponse {
+  user: EnterpriseUserSummary;
+}
+
 export interface DeleteEnterpriseUserResponse {
   status: 'deleted';
   userId: string;

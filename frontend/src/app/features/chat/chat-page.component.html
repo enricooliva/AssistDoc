@@ -5,7 +5,7 @@
     </button>
     <div class="chat-layout__recent">
       <div class="chat-layout__recent-title">Recenti</div>
-      <div class="chat-layout__history">
+      <div class="chat-layout__history overflow-auto">
         <div
           *ngFor="let conversation of conversations()"
           class="chat-layout__history-row"
@@ -78,7 +78,7 @@
       />
     </section>
 
-    <div class="chat-layout__messages">
+    <div class="chat-layout__messages flex-grow-1 overflow-auto">
       <p *ngIf="loading()" class="chat-layout__empty">Caricamento conversazione in corso...</p>
       <p *ngIf="!loading() && !messages().length" class="chat-layout__empty">
         Nessun messaggio disponibile. Inizia con una domanda sui documenti del tenant.

@@ -43,5 +43,14 @@ class TenantAdministrationAuthorizationTest extends TestCase
             ])
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'ACCESS_DENIED');
+
+        $this->withToken($token)
+            ->patchJson('/api/v1/tenants/1', [
+                'tenant_name' => 'Tenant Negato',
+                'tenant_slug' => 'tenant-negato',
+                'status' => 'inactive',
+            ])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'ACCESS_DENIED');
     }
 }

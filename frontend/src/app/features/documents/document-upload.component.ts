@@ -21,7 +21,7 @@ import { DocumentApiService } from './document-api.service';
       </div>
 
       <div *ngIf="!canUpload()" class="upload-card__notice">
-        Solo gli utenti con ruolo operatore o super-admin possono caricare documenti.
+        Solo gli utenti con ruolo tenant-admin, operatore o super-admin possono caricare documenti.
       </div>
 
       <form *ngIf="canUpload()" class="upload-form" [formGroup]="form" (ngSubmit)="submit()">
@@ -123,7 +123,7 @@ export class DocumentUploadComponent {
   readonly submitting = signal(false);
   readonly feedback = signal('');
   readonly model = signal<{ file: string | null; tags: string }>({ file: null, tags: '' });
-  readonly canUpload = computed(() => this.authService.hasAnyRole(['super-admin', 'operator']));
+  readonly canUpload = computed(() => this.authService.hasAnyRole(['super-admin', 'tenant-admin', 'operator']));
   private selectedFile: File | null = null;
 
   readonly fields: FormlyFieldConfig[] = [
