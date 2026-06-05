@@ -20,31 +20,31 @@ class MessageCitationRepository
             $documentId = (string) ($citation['documentId'] ?? '');
             $documentSegmentId = (string) ($citation['documentSegmentId'] ?? '');
 
-            if ($documentSegmentId === '') {
-                continue;
-            }
+            // if ($documentSegmentId === '') {
+            //     continue;
+            // }
 
-            $segment = DocumentSegment::query()
-                ->whereKey($documentSegmentId)
-                ->where('tenant_id', $message->tenant_id)
-                ->first();
+            // $segment = DocumentSegment::query()
+            //     ->whereKey($documentSegmentId)
+            //     ->where('tenant_id', $message->tenant_id)
+            //     ->first();
 
-            if (! $segment) {
-                continue;
-            }
+            // if (! $segment) {
+            //     continue;
+            // }
 
-            $documentId = $documentId !== '' ? $documentId : (string) $segment->document_id;
+            // $documentId = $documentId !== '' ? $documentId : (string) $segment->document_id;
 
-            if ($documentId === '' || (string) $segment->document_id !== $documentId) {
-                continue;
-            }
+            // if ($documentId === '' || (string) $segment->document_id !== $documentId) {
+            //     continue;
+            // }
 
-            if (! Document::query()
-                ->whereKey($documentId)
-                ->where('tenant_id', $message->tenant_id)
-                ->exists()) {
-                continue;
-            }
+            // if (! Document::query()
+            //     ->whereKey($documentId)
+            //     ->where('tenant_id', $message->tenant_id)
+            //     ->exists()) {
+            //     continue;
+            // }
 
             MessageCitation::query()->create([
                 'tenant_id' => $message->tenant_id,
