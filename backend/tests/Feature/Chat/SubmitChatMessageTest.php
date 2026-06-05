@@ -232,7 +232,7 @@ class SubmitChatMessageTest extends TestCase
     }
 
     #[Test]
-    public function it_skips_invalid_citations_when_search_results_do_not_reference_existing_documents(): void
+    public function it_recovers_citations_when_the_search_payload_only_provides_a_valid_segment_id(): void
     {
         [$viewer, $conversation] = $this->prepareConversation();
         $retrievalProfile = RetrievalModelProfile::query()->where('slug', config('rag.default_retrieval_profile.slug'))->firstOrFail();
@@ -256,6 +256,7 @@ class SubmitChatMessageTest extends TestCase
             'document_id' => $document->id,
             'retrieval_model_profile_id' => (string) $retrievalProfile->id,
             'chunking_profile_id' => ChunkingProfile::query()->where('slug', 'medium')->firstOrFail()->id,
+            'embedding_model' => $retrievalProfile->embedding_model,
             'segment_index' => 0,
             'content_text' => 'AssistDoc applica isolamento tenant lato server.',
             'token_count' => 12,
@@ -313,9 +314,11 @@ class SubmitChatMessageTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('assistantMessage.responseState', 'answered')
-            ->assertJsonPath('assistantMessage.citations', []);
+            ->assertJsonPath('assistantMessage.citations.0.documentName', 'Manuale Tenant.pdf')
+            ->assertJsonPath('assistantMessage.citations.0.embedding', $retrievalProfile->embedding_model)
+            ->assertJsonPath('assistantMessage.citations.0.collection', (string) config('services.qdrant.collection', 'assistdoc_segments'));
 
-        $this->assertDatabaseCount('message_citations', 0);
+        $this->assertDatabaseCount('message_citations', 1);
     }
 
     #[Test]

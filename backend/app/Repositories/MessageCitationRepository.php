@@ -20,21 +20,28 @@ class MessageCitationRepository
             $documentId = (string) ($citation['documentId'] ?? '');
             $documentSegmentId = (string) ($citation['documentSegmentId'] ?? '');
 
-            if ($documentId === '' || $documentSegmentId === '') {
+            if ($documentSegmentId === '') {
+                continue;
+            }
+
+            $segment = DocumentSegment::query()
+                ->whereKey($documentSegmentId)
+                ->where('tenant_id', $message->tenant_id)
+                ->first();
+
+            if (! $segment) {
+                continue;
+            }
+
+            $documentId = $documentId !== '' ? $documentId : (string) $segment->document_id;
+
+            if ($documentId === '' || (string) $segment->document_id !== $documentId) {
                 continue;
             }
 
             if (! Document::query()
                 ->whereKey($documentId)
                 ->where('tenant_id', $message->tenant_id)
-                ->exists()) {
-                continue;
-            }
-
-            if (! DocumentSegment::query()
-                ->whereKey($documentSegmentId)
-                ->where('tenant_id', $message->tenant_id)
-                ->where('document_id', $documentId)
                 ->exists()) {
                 continue;
             }
