@@ -9,11 +9,23 @@ use App\Models\RetrievalModelProfile;
 use App\Services\AI\EmbeddingService;
 use App\Services\Documents\DocumentIndexerService;
 use App\Services\QdrantService;
+use Database\Seeders\DatabaseSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Mockery;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class DocumentIndexerServiceTest extends TestCase
 {
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->seed(DatabaseSeeder::class);
+    }
+
     #[Test]
     public function it_builds_searchable_segments_from_text(): void
     {
@@ -29,6 +41,7 @@ class DocumentIndexerServiceTest extends TestCase
         $this->assertNotEmpty($segments);
         $this->assertSame(0, $segments[0]['segment_index']);
         $this->assertSame('Segmento 1', $segments[0]['source_label']);
+        $this->assertSame('qwen3-embedding', $segments[0]['embedding_model']);
     }
 
     #[Test]
@@ -41,9 +54,26 @@ class DocumentIndexerServiceTest extends TestCase
             'filename' => 'manuale.txt',
         ]);
 
+        $capturedPoints = [];
+        $this->mock(QdrantService::class, function ($mock) use (&$capturedPoints): void {
+            $mock->shouldReceive('generatePointId')
+                ->once()
+                ->andReturn(12345);
+            $mock->shouldReceive('upsert')
+                ->once()
+                ->with(
+                    Mockery::on(function (array $points) use (&$capturedPoints): bool {
+                        $capturedPoints = $points;
+
+                        return true;
+                    }),
+                    Mockery::any(),
+                    Mockery::any(),
+                )
+                ->andReturn(['status' => 'ok']);
+        });
+
         $service = app(DocumentIndexerService::class);
-        $qdrant = app(QdrantService::class);
-        $queryVector = app(EmbeddingService::class)->embed('AssistDoc rende il contenuto semanticamente ricercabile.');
         $service->indexSegments($document, [[
             'id' => 44,
             'segment_index' => 0,
@@ -51,11 +81,10 @@ class DocumentIndexerServiceTest extends TestCase
             'content_text' => 'AssistDoc rende il contenuto semanticamente ricercabile.',
         ]]);
 
-        $results = $qdrant->search($queryVector, 5, null, [
-            ['field' => 'document_id', 'operator' => '=', 'value' => '11'],
-        ]);
-
-        $this->assertCount(1, $results['result'] ?? $results);
+        $this->assertNotEmpty($capturedPoints);
+        $this->assertSame('qwen3-embedding', $capturedPoints[0]['payload']['embedding_model']);
+        $this->assertSame('11', $capturedPoints[0]['payload']['document_id']);
+        $this->assertSame('AssistDoc rende il contenuto semanticamente ricercabile.', $capturedPoints[0]['payload']['content_text']);
     }
 
     #[Test]
@@ -71,8 +100,20 @@ class DocumentIndexerServiceTest extends TestCase
         $profile = RetrievalModelProfile::query()->where('slug', config('rag.default_retrieval_profile.slug'))->firstOrFail();
         $smallChunkingProfile = ChunkingProfile::query()->where('slug', 'small')->firstOrFail();
         $largeChunkingProfile = ChunkingProfile::query()->where('slug', 'large')->firstOrFail();
+        $pointIds = [];
+        $this->mock(QdrantService::class, function ($mock) use (&$pointIds): void {
+            $mock->shouldReceive('generatePointId')
+                ->twice()
+                ->andReturn(11111, 22222);
+            $mock->shouldReceive('upsert')
+                ->twice()
+                ->andReturnUsing(function (array $points) use (&$pointIds): array {
+                    $pointIds[] = $points[0]['id'];
+
+                    return ['status' => 'ok'];
+                });
+        });
         $service = app(DocumentIndexerService::class);
-        $qdrant = app(QdrantService::class);
 
         $service->indexSegments($document, [[
             'id' => 100,
@@ -91,12 +132,8 @@ class DocumentIndexerServiceTest extends TestCase
             'chunking_profile_id' => $largeChunkingProfile->id,
         ]], $profile);
 
-        $results = $qdrant->search(app(EmbeddingService::class)->embed('Contenuto'), 10, null, [
-            ['field' => 'document_id', 'operator' => '=', 'value' => '21'],
-            ['field' => 'retrieval_model_profile_id', 'operator' => '=', 'value' => (string) $profile->id],
-        ]);
-
-        $this->assertCount(2, $results['result'] ?? $results);
+        $this->assertCount(2, $pointIds);
+        $this->assertNotSame($pointIds[0], $pointIds[1]);
     }
 
     #[Test]
@@ -118,6 +155,7 @@ class DocumentIndexerServiceTest extends TestCase
         $this->assertNotEmpty($segments);
         $this->assertSame((string) $run->id, (string) $segments[0]['chunk_preparation_run_id']);
         $this->assertSame((string) $profile->id, (string) $segments[0]['retrieval_model_profile_id']);
+        $this->assertSame($profile->embedding_model, $segments[0]['embedding_model']);
         $this->assertSame((string) $chunkingProfile->id, (string) $segments[0]['chunking_profile_id']);
         $this->assertSame(10, $segments[0]['token_count']);
     }

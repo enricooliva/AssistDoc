@@ -4,11 +4,22 @@ namespace Tests\Unit\AI;
 
 use App\Services\AI\EmbeddingService;
 use App\Models\RetrievalModelProfile;
+use Database\Seeders\DatabaseSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class EmbeddingServiceTest extends TestCase
 {
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->seed(DatabaseSeeder::class);
+    }
+
     #[Test]
     public function it_uses_the_configured_embedding_model_and_dimensions(): void
     {
@@ -37,7 +48,7 @@ class EmbeddingServiceTest extends TestCase
     public function it_uses_profile_specific_embedding_dimensions_for_qwen(): void
     {
         $service = app(EmbeddingService::class);
-        $profile = RetrievalModelProfile::query()->where('slug', config('rag.default_retrieval_profile.slug'))->firstOrFail();
+        $profile = RetrievalModelProfile::query()->where('slug', config('rag.profiles.default.slug'))->firstOrFail();
 
         $vector = $service->embed('Qwen usa embedding da 4096 dimensioni.', $profile);
 

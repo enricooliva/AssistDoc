@@ -16,12 +16,17 @@ class AuthServiceStub {
 }
 
 class DocumentApiServiceStub {
-  error = () => '';
   uploadDocument = jasmine.createSpy('uploadDocument').and.resolveTo({
     id: 'doc-1',
     filename: 'manuale.txt',
     tags: [],
   });
+
+  failUpload(message: string): void {
+    this.uploadDocument.and.callFake(async () => {
+      throw new Error(message);
+    });
+  }
 }
 
 describe('DocumentUploadComponent', () => {
@@ -79,5 +84,24 @@ describe('DocumentUploadComponent', () => {
     fixture.detectChanges();
 
     expect((fixture.componentInstance as DocumentUploadComponent).canUpload()).toBeTrue();
+  });
+
+  it('shows only the error alert when the upload fails', async () => {
+    const api = TestBed.inject(DocumentApiService) as unknown as DocumentApiServiceStub;
+    api.failUpload('Caricamento non riuscito.');
+
+    const component = fixture.componentInstance as DocumentUploadComponent;
+    component.fields[0].props?.onSelected?.(new File(['contenuto'], 'manuale.txt'));
+    fixture.detectChanges();
+
+    await component.submit();
+    fixture.detectChanges();
+
+    const errorAlerts = fixture.nativeElement.querySelectorAll('.upload-card__error');
+    const feedbackAlerts = fixture.nativeElement.querySelectorAll('.upload-card__feedback');
+
+    expect(errorAlerts.length).toBe(1);
+    expect(feedbackAlerts.length).toBe(0);
+    expect(fixture.nativeElement.textContent).toContain('Caricamento non riuscito.');
   });
 });

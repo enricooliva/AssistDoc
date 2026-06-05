@@ -119,13 +119,15 @@ class ChatConversationRepository
         ChatConversation $conversation,
         string $actorType,
         string $body,
-        ?string $responseState = null
+        ?string $responseState = null,
+        ?string $generationModel = null
     ): ChatMessage {
         $message = $conversation->messages()->create([
             'tenant_id' => $conversation->tenant_id,
             'actor_type' => $actorType,
             'body' => $body,
             'response_state' => $responseState,
+            'generation_model' => $generationModel,
             'created_at' => now(),
         ]);
 

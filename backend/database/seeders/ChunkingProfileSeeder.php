@@ -24,8 +24,8 @@ class ChunkingProfileSeeder extends Seeder
             ['slug' => 'medium'],
             [
                 'name' => 'Medium',
-                'chunk_size_tokens' => 300,
-                'overlap_tokens' => 40,
+                'chunk_size_tokens' => 500,
+                'overlap_tokens' => 100,
                 'active' => true,
                 'notes' => 'Profilo bilanciato predefinito.',
             ],

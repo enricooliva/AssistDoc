@@ -2,7 +2,6 @@
 
 namespace App\Services\Documents;
 
-use App\Jobs\DeleteDocumentVectorsJob;
 use App\Models\Document;
 use App\Repositories\DocumentRepository;
 use App\Repositories\DocumentSegmentRepository;
@@ -16,6 +15,7 @@ class DocumentService
         private readonly DocumentRepository $documentRepository,
         private readonly DocumentSegmentRepository $documentSegmentRepository,
         private readonly AuditService $auditService,
+        private readonly DocumentIndexerService $documentIndexerService,
     ) {
     }
 
@@ -110,7 +110,7 @@ class DocumentService
             return $document;
         });
 
-        DeleteDocumentVectorsJob::dispatch((string) $document->tenant_id, (string) $document->id);
+        $this->documentIndexerService->deleteDocumentVectors($document);
 
         return [
             'documentId' => (string) $document->id,

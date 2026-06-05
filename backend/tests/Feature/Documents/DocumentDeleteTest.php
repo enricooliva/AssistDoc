@@ -2,14 +2,12 @@
 
 namespace Tests\Feature\Documents;
 
-use App\Jobs\DeleteDocumentVectorsJob;
 use App\Models\Document;
 use App\Models\DocumentSegment;
 use App\Models\Tenant;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -29,8 +27,6 @@ class DocumentDeleteTest extends TestCase
     #[Test]
     public function operator_can_soft_delete_a_document_and_retire_segments(): void
     {
-        Queue::fake();
-
         $tenant = Tenant::query()->where('slug', 'assistdoc-demo')->firstOrFail();
         $operator = User::query()->where('email', 'operator@assistdoc.local')->firstOrFail();
 
@@ -63,6 +59,12 @@ class DocumentDeleteTest extends TestCase
             'retired_at' => null,
         ]);
 
+        $this->mock(\App\Services\Documents\DocumentIndexerService::class, function ($mock) use ($document): void {
+            $mock->shouldReceive('deleteDocumentVectors')
+                ->once()
+                ->with(\Mockery::on(fn (Document $deletedDocument): bool => $deletedDocument->id === $document->id));
+        });
+
         $token = (string) $this->postJson('/api/v1/auth/login', [
             'email' => 'operator@assistdoc.local',
             'password' => 'password123',
@@ -79,24 +81,18 @@ class DocumentDeleteTest extends TestCase
 
         $document->refresh();
         $this->assertNotNull($document->deleted_at);
-        $this->assertSame($operator->id, (string) $document->deleted_by_user_id);
+        $this->assertSame((string) $operator->id, (string) $document->deleted_by_user_id);
         $this->assertSame('deleted', $document->status);
 
         $this->assertDatabaseHas('document_segments', [
             'document_id' => $document->id,
             'searchable' => 0,
         ]);
-
-        Queue::assertPushed(DeleteDocumentVectorsJob::class, function (DeleteDocumentVectorsJob $job) use ($document): bool {
-            return $job->tenantId === (string) $document->tenant_id && $job->documentId === (string) $document->id;
-        });
     }
 
     #[Test]
     public function deleting_the_same_document_twice_returns_a_conflict(): void
     {
-        Queue::fake();
-
         $tenant = Tenant::query()->where('slug', 'assistdoc-demo')->firstOrFail();
         $operator = User::query()->where('email', 'operator@assistdoc.local')->firstOrFail();
 
@@ -163,8 +159,6 @@ class DocumentDeleteTest extends TestCase
     #[Test]
     public function deleting_a_document_outside_the_tenant_returns_not_found(): void
     {
-        Queue::fake();
-
         $tenantB = Tenant::query()->where('slug', 'tenant-b')->firstOrFail();
         $viewerB = User::query()->where('email', 'viewer-b@assistdoc.local')->firstOrFail();
 

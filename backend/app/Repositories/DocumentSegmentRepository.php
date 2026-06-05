@@ -74,7 +74,7 @@ class DocumentSegmentRepository
     ): array
     {
         $builder = DocumentSegment::query()
-            ->with('document')
+            ->with(['document', 'retrievalModelProfile'])
             ->where('tenant_id', $tenantId)
             ->where('searchable', true)
             ->whereNull('retired_at')
@@ -114,6 +114,7 @@ class DocumentSegmentRepository
                     'score' => 0.9,
                     'sourceLabel' => $segment->source_label,
                     'retrievalModelProfileId' => $segment->retrieval_model_profile_id ? (string) $segment->retrieval_model_profile_id : null,
+                    'embeddingModel' => $segment->embedding_model ?? $segment->retrievalModelProfile?->embedding_model,
                     'tenantId' => $tenantId,
                     'query' => $query,
                 ];

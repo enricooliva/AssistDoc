@@ -37,8 +37,8 @@ import { DocumentApiService } from './document-api.service';
         </div>
       </form>
 
-      <p *ngIf="feedback()" class="upload-card__feedback">{{ feedback() }}</p>
-      <p *ngIf="api.error()" class="upload-card__error">{{ api.error() }}</p>
+      <p *ngIf="status()?.kind === 'success'" class="upload-card__feedback">{{ status()?.message }}</p>
+      <p *ngIf="status()?.kind === 'error'" class="upload-card__error">{{ status()?.message }}</p>
     </section>
   `,
   styles: [`
@@ -121,7 +121,7 @@ export class DocumentUploadComponent {
 
   readonly form = new FormGroup({});
   readonly submitting = signal(false);
-  readonly feedback = signal('');
+  readonly status = signal<{ kind: 'success' | 'error'; message: string } | null>(null);
   readonly model = signal<{ file: string | null; tags: string }>({ file: null, tags: '' });
   readonly canUpload = computed(() => this.authService.hasAnyRole(['super-admin', 'tenant-admin', 'operator']));
   private selectedFile: File | null = null;
@@ -138,7 +138,7 @@ export class DocumentUploadComponent {
         accept: '.txt,.md,.pdf,text/plain,text/markdown,application/pdf',
         onSelected: (selFile: File | null) => {
           this.selectedFile = selFile;
-          this.feedback.set('');
+          this.status.set(null);
         },
       },
     },
@@ -154,30 +154,37 @@ export class DocumentUploadComponent {
   ];
 
   async submit(): Promise<void> {
-    this.feedback.set('');
+    this.status.set(null);
     this.form.markAllAsTouched();
     
     if (!this.selectedFile) {
-      this.feedback.set('Seleziona un documento prima di procedere.');
+      this.status.set({ kind: 'error', message: 'Seleziona un documento prima di procedere.' });
       return;
     }
 
     this.submitting.set(true);
     try {
       const document = await this.api.uploadDocument(this.selectedFile, this.parseTags(this.model().tags));
-      this.feedback.set(`Documento "${document.filename}" caricato correttamente.`);
-      this.reset();
+      this.status.set({ kind: 'success', message: `Documento "${document.filename}" caricato correttamente.` });
+      this.reset(false);
     } catch (error) {
-      this.feedback.set(error instanceof Error ? error.message : 'Caricamento non riuscito.');
+      this.status.set({
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'Caricamento non riuscito.',
+      });
     } finally {
       this.submitting.set(false);
     }
   }
 
-  reset(): void {
+  reset(clearStatus = true): void {
     this.form.reset();
     this.selectedFile = null;
     this.model.set({ file: null, tags: '' });
+
+    if (clearStatus) {
+      this.status.set(null);
+    }
   }
 
   private parseTags(raw: string): string[] {

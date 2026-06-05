@@ -17,6 +17,7 @@ class DocumentSegment extends Model
         'document_id',
         'chunk_preparation_run_id',
         'retrieval_model_profile_id',
+        'embedding_model',
         'chunking_profile_id',
         'segment_index',
         'content_text',

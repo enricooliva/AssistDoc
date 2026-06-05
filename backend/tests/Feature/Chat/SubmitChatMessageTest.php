@@ -12,6 +12,7 @@ use App\Services\AI\AiSearchService;
 use App\Services\QdrantService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -24,6 +25,103 @@ class SubmitChatMessageTest extends TestCase
         parent::setUp();
 
         $this->seed(DatabaseSeeder::class);
+        Http::fake(fn () => Http::response(['result' => 'ok'], 200));
+        app()->instance(QdrantService::class, new class extends QdrantService
+        {
+            public function __construct()
+            {
+            }
+
+            public function reset(string $collection = null, ?int $vectorSize = null): array
+            {
+                return ['collection' => $collection ?? 'assistdoc_segments', 'vector_size' => $vectorSize ?? 4096];
+            }
+
+            public function search(
+                array $vector,
+                int $limit = 5,
+                string $documentType = null,
+                array $rules = [],
+                string $name = null,
+                ?int $vectorSize = null
+            ): array {
+                $tenantId = null;
+                $retrievalModelProfileId = null;
+                $chunkingProfileId = null;
+                $tags = [];
+
+                foreach ($rules as $rule) {
+                    if (($rule['field'] ?? null) === 'tenant_id') {
+                        $tenantId = (string) ($rule['value'] ?? '');
+                    }
+
+                    if (($rule['field'] ?? null) === 'retrieval_model_profile_id') {
+                        $retrievalModelProfileId = (string) ($rule['value'] ?? '');
+                    }
+
+                    if (($rule['field'] ?? null) === 'chunking_profile_id') {
+                        $chunkingProfileId = (string) ($rule['value'] ?? '');
+                    }
+
+                    if (($rule['field'] ?? null) === 'tags' && is_array($rule['value'] ?? null)) {
+                        $tags = $rule['value'];
+                    }
+                }
+
+                $query = DocumentSegment::query()
+                    ->with(['document', 'retrievalModelProfile'])
+                    ->where('searchable', true)
+                    ->whereNull('retired_at');
+
+                if ($tenantId !== null) {
+                    $query->where('tenant_id', $tenantId);
+                }
+
+                if ($retrievalModelProfileId !== null) {
+                    $query->where('retrieval_model_profile_id', $retrievalModelProfileId);
+                }
+
+                if ($chunkingProfileId !== null) {
+                    $query->where('chunking_profile_id', $chunkingProfileId);
+                }
+
+                if ($tags !== []) {
+                    $query->whereHas('document', function ($builder) use ($tags): void {
+                        $builder->where(function ($builder) use ($tags): void {
+                            foreach ($tags as $tag) {
+                                $builder->orWhereJsonContains('tags', $tag);
+                            }
+                        });
+                    });
+                }
+
+                $matches = $query
+                    ->limit($limit)
+                    ->get()
+                    ->map(static function (DocumentSegment $segment): array {
+                        return [
+                            'score' => 0.92,
+                            'payload' => [
+                                'document_id' => (string) $segment->document_id,
+                                'segment_id' => (string) $segment->id,
+                                'filename' => $segment->document?->filename ?? 'Documento',
+                                'content_text' => $segment->content_text,
+                                'source_label' => $segment->source_label,
+                                'retrieval_model_profile_id' => $segment->retrieval_model_profile_id ? (string) $segment->retrieval_model_profile_id : null,
+                                'embedding_model' => $segment->embedding_model ?? $segment->retrievalModelProfile?->embedding_model,
+                            ],
+                        ];
+                    })
+                    ->all();
+
+                return ['result' => $matches];
+            }
+
+            public function upsert(array $points, string $name = null, ?int $vectorSize = null): array
+            {
+                return ['status' => 'ok'];
+            }
+        });
         app(QdrantService::class)->reset();
     }
 
@@ -43,8 +141,10 @@ class SubmitChatMessageTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('assistantMessage.responseState', 'answered')
+            ->assertJsonPath('assistantMessage.generationModel', $retrievalProfile->generation_model)
             ->assertJsonPath('assistantMessage.citations.0.documentName', 'Manuale Tenant.pdf')
             ->assertJsonPath('retrievalModelProfileId', (string) $retrievalProfile->id)
+            ->assertJsonPath('generationModel', $retrievalProfile->generation_model)
             ->assertJsonPath('promptContract', 'askLlamaWithContext');
 
         $this->assertCount(1, $aiSearchService->askCalls);
@@ -162,6 +262,7 @@ class SubmitChatMessageTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('retrievalModelProfileId', (string) $retrievalProfile->id)
+            ->assertJsonPath('generationModel', $retrievalProfile->generation_model)
             ->assertJsonPath('promptContract', 'askLlamaWithContext');
 
         $this->assertCount(1, $aiSearchService->askCalls);

@@ -46,7 +46,7 @@ class ChunkingProfileService
     public function defaultProfiles(): array
     {
         $profiles = $this->repository->listAll();
-        $preferredSlugs = ['small', 'medium', 'large'];
+        $preferredSlugs = ['medium']; //['small', 'medium', 'large'];
         $preferred = [];
 
         foreach ($preferredSlugs as $slug) {

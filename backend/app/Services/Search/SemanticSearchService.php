@@ -62,6 +62,7 @@ class SemanticSearchService
                 'score' => round($match['score'], 4),
                 'sourceLabel' => $match['payload']['source_label'],
                 'retrievalModelProfileId' => $match['payload']['retrieval_model_profile_id'] ?? null,
+                'embeddingModel' => $match['payload']['embedding_model'] ?? null,
                 'tenantId' => $tenantId,
                 'query' => $query, 
             ], $vectorMatches)

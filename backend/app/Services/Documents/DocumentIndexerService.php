@@ -51,11 +51,14 @@ class DocumentIndexerService
                 'document_id' => $document->id,
                 'chunk_preparation_run_id' => $run?->id,
                 'retrieval_model_profile_id' => $profile?->id,
+                'embedding_model' => $this->embeddingService->getEmbeddingModel($profile),
                 'chunking_profile_id' => $chunkingProfile?->id,
                 'segment_index' => $index,
                 'content_text' => $trimmed,
                 'token_count' => $chunk['token_count'],
-                'source_label' => sprintf('Segmento %d %d %d', $index + 1, $chunkingProfile->chunk_size_tokens, $chunkingProfile->overlap_tokens),
+                'source_label' => $chunkingProfile
+                    ? sprintf('Segmento %d %d %d', $index + 1, $chunkingProfile->chunk_size_tokens, $chunkingProfile->overlap_tokens)
+                    : sprintf('Segmento %d', $index + 1),
                 'searchable' => false,
                 'activated_at' => null,
                 'retired_at' => null,

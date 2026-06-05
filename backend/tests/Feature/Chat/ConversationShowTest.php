@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\QdrantService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -23,6 +24,7 @@ class ConversationShowTest extends TestCase
         parent::setUp();
 
         $this->seed(DatabaseSeeder::class);
+        Http::fake(fn () => Http::response(['result' => 'ok'], 200));
         app(QdrantService::class)->reset();
     }
 
@@ -52,6 +54,7 @@ class ConversationShowTest extends TestCase
             'actor_type' => 'assistant',
             'body' => 'L\'isolamento tenant viene applicato lato server.',
             'response_state' => 'answered',
+            'generation_model' => 'qwen3',
             'created_at' => now(),
         ]);
 
@@ -95,6 +98,7 @@ class ConversationShowTest extends TestCase
             ->assertJsonPath('conversation.id', (string) $conversation->id)
             ->assertJsonPath('messages.0.id', (string) $userMessage->id)
             ->assertJsonPath('messages.1.responseState', 'answered')
+            ->assertJsonPath('messages.1.generationModel', 'qwen3')
             ->assertJsonPath('messages.1.citations.0.documentName', 'Manuale Sicurezza.pdf');
     }
 

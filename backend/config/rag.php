@@ -1,9 +1,8 @@
 <?php
 
-return [
-    'profile_preset' => env('RAG_PROFILE_PRESET', 'default'),
+$profilePreset = env('RAG_PROFILE_PRESET', 'default');
 
-    'profiles' => [
+$profiles = [
         'default' => [
             'name' => 'Qwen',
             'slug' => 'qwen',
@@ -33,5 +32,12 @@ return [
 
             'available_for_new_runs' => true,
         ],
-    ],
+];
+
+$defaultRetrievalProfile = $profiles[$profilePreset] ?? $profiles['default'];
+
+return [
+    'profile_preset' => $profilePreset,
+    'profiles' => $profiles,
+    'default_retrieval_profile' => $defaultRetrievalProfile,
 ];

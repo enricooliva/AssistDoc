@@ -190,7 +190,9 @@ class ChatServiceTest extends TestCase
         );
 
         $this->assertSame((string) $retrievalProfile->id, $response['retrievalModelProfileId']);
+        $this->assertSame($retrievalProfile->generation_model, $response['generationModel']);
         $this->assertSame('answered', $response['assistantMessage']['responseState']);
+        $this->assertSame($retrievalProfile->generation_model, $response['assistantMessage']['generationModel']);
     }
 
     private function prepareConversation(): array

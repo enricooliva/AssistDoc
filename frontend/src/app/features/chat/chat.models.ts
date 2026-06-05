@@ -12,6 +12,7 @@ export interface ChatMessage {
   actorType: 'user' | 'assistant';
   body: string;
   responseState: ChatResponseState | null;
+  generationModel?: string | null;
   citations: ChatCitation[] | null;
   createdAt: string;
 }
@@ -72,6 +73,8 @@ export interface ChatExchangeResponse {
   conversationId: string;
   userMessage: ChatMessage;
   assistantMessage: ChatMessage;
+  retrievalModelProfileId?: string | null;
+  generationModel?: string | null;
 }
 
 export interface ChatSearchFilters {

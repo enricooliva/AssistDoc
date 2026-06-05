@@ -19,6 +19,7 @@ class ChatMessage extends Model
         'actor_type',
         'body',
         'response_state',
+        'generation_model',
         'created_at',
     ];
 

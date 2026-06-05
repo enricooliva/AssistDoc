@@ -130,6 +130,113 @@ class QdrantService
         return Http::post("{$this->url}/collections/{$collection}/points/scroll", $params)
             ->json();
     }
+
+    /**
+     * Remove and recreate a collection so it starts empty.
+     */
+    public function reset(string $collection = null, ?int $vectorSize = null): array
+    {
+        $collection = $this->resolveCollectionName($collection, $vectorSize);
+        $vectorSize = $vectorSize ?? $this->vectorSize;
+
+        try {
+            $response = Http::delete("{$this->url}/collections/{$collection}");
+
+            if (! $response->successful() && $response->status() !== 404) {
+                Log::warning("Qdrant reset returned status {$response->status()} for collection {$collection}");
+            }
+        } catch (\Throwable $e) {
+            Log::error("Errore Qdrant reset delete phase: {$e->getMessage()}", [
+                'collection' => $collection,
+            ]);
+        }
+
+        $created = $this->createCollection($collection, $vectorSize);
+        $this->createIndexes($collection);
+
+        return [
+            'collection' => $collection,
+            'vector_size' => $vectorSize,
+            'created' => $created,
+        ];
+    }
+
+    /**
+     * Remove all points from an existing collection without recreating it.
+     */
+    public function clear(string $collection = null, ?int $vectorSize = null, int $batchSize = 512): array
+    {
+        $collection = $this->resolveCollectionName($collection, $vectorSize);
+        $deleted = 0;
+        $offset = null;
+
+        try {
+            $exists = Http::get("{$this->url}/collections/{$collection}");
+
+            if ($exists->status() === 404) {
+                return [
+                    'collection' => $collection,
+                    'deleted' => 0,
+                    'chunks' => 0,
+                ];
+            }
+
+            if (! $exists->successful()) {
+                Log::warning("Qdrant clear lookup returned status {$exists->status()} for collection {$collection}");
+
+                return [
+                    'collection' => $collection,
+                    'deleted' => 0,
+                    'chunks' => 0,
+                ];
+            }
+
+            do {
+                $response = Http::post("{$this->url}/collections/{$collection}/points/scroll", [
+                    'limit' => $batchSize,
+                    'offset' => $offset,
+                    'with_payload' => false,
+                    'with_vector' => false,
+                ]);
+
+                if (! $response->successful()) {
+                    Log::warning("Qdrant clear scroll returned status {$response->status()} for collection {$collection}");
+
+                    break;
+                }
+
+                $result = $response->json('result', []);
+                $points = $result['points'] ?? [];
+                $offset = $result['next_page_offset'] ?? null;
+
+                $pointIds = array_values(array_filter(array_map(static fn (array $point) => $point['id'] ?? null, $points), static fn ($id) => $id !== null && $id !== ''));
+
+                if ($pointIds !== []) {
+                    $deleteResponse = Http::post("{$this->url}/collections/{$collection}/points/delete", [
+                        'points' => $pointIds,
+                    ]);
+
+                    if (! $deleteResponse->successful()) {
+                        Log::warning("Qdrant clear delete returned status {$deleteResponse->status()} for collection {$collection}");
+
+                        break;
+                    }
+
+                    $deleted += count($pointIds);
+                }
+            } while ($offset !== null);
+        } catch (\Throwable $e) {
+            Log::error("Errore Qdrant clear: {$e->getMessage()}", [
+                'collection' => $collection,
+            ]);
+        }
+
+        return [
+            'collection' => $collection,
+            'deleted' => $deleted,
+            'chunks' => $deleted > 0 ? (int) ceil($deleted / $batchSize) : 0,
+        ];
+    }
    
 
     protected function enrichQuery(string $query): string

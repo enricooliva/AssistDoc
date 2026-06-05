@@ -164,6 +164,7 @@ class ChatService
             $chunkingProfileId,
         );
         $supportingResults = $search['results'];
+        $generationModel = null;
 
         if (! $this->hasSufficientSupport($supportingResults)) {
             $assistantPayload = [
@@ -177,12 +178,13 @@ class ChatService
                 $retrievalProfile = $this->retrievalModelProfileService->resolve(
                     $search['retrievalModelProfileId'] ?? null,
                 );
+                $generationModel = $this->aiSearchService->getGenerationModel($retrievalProfile);
 
                 $assistantPayload = [
                     'body' => $this->aiSearchService->askLlamaWithContext(
                         $question,
                         $this->buildContext($supportingResults),
-                        $this->aiSearchService->getGenerationModel($retrievalProfile),
+                        $generationModel,
                         true,
                         false,
                     ),
@@ -204,7 +206,8 @@ class ChatService
             $conversation,
             'assistant',
             $assistantPayload['body'],
-            $assistantPayload['responseState']
+            $assistantPayload['responseState'],
+            $generationModel ?? null
         );
 
         if ($citations !== []) {
@@ -228,6 +231,7 @@ class ChatService
             userMessage: ChatMessageData::fromModel($userMessage),
             assistantMessage: ChatMessageData::fromModel($assistantMessage),
             retrievalModelProfileId: $search['retrievalModelProfileId'] ?? null,
+            generationModel: $generationModel ?? null,
         ))->toArray();
     }
 

@@ -9,6 +9,7 @@ class ChatExchangeData
         public readonly ChatMessageData $userMessage,
         public readonly ChatMessageData $assistantMessage,
         public readonly ?string $retrievalModelProfileId = null,
+        public readonly ?string $generationModel = null,
     ) {
     }
 
@@ -19,6 +20,7 @@ class ChatExchangeData
             'userMessage' => $this->userMessage->toArray(),
             'assistantMessage' => $this->assistantMessage->toArray(),
             'retrievalModelProfileId' => $this->retrievalModelProfileId,
+            'generationModel' => $this->generationModel,
             'promptContract' => 'askLlamaWithContext',
         ];
     }

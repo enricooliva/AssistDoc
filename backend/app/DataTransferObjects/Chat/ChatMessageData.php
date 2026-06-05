@@ -12,6 +12,7 @@ class ChatMessageData
         public readonly string $actorType,
         public readonly string $body,
         public readonly ?string $responseState,
+        public readonly ?string $generationModel,
         public readonly ?array $citations,
         public readonly ?string $createdAt,
     ) {
@@ -33,6 +34,7 @@ class ChatMessageData
             actorType: $message->actor_type,
             body: $message->body,
             responseState: $message->response_state,
+            generationModel: $message->generation_model,
             citations: $citations,
             createdAt: $message->created_at?->toIso8601String(),
         );
@@ -45,6 +47,7 @@ class ChatMessageData
             'actorType' => $this->actorType,
             'body' => $this->body,
             'responseState' => $this->responseState,
+            'generationModel' => $this->generationModel,
             'citations' => $this->citations,
             'createdAt' => $this->createdAt,
         ];
