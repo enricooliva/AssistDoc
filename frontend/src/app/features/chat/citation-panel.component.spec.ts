@@ -36,6 +36,23 @@ describe('CitationPanelComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Segmento 1');
   });
 
+  it('renders optional segment metadata when available', () => {
+    component.citations = [
+      {
+        documentId: '1',
+        documentName: 'Manuale Aziendale.pdf',
+        sourceLabel: 'Segmento 1',
+        quoteText: 'AssistDoc usa isolamento tenant lato server.',
+        collection: 'assistdoc_segments',
+        embedding: 'qwen3-embedding:0.6b',
+      },
+    ];
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Collection: assistdoc_segments');
+    expect(fixture.nativeElement.textContent).toContain('Embedding: qwen3-embedding:0.6b');
+  });
+
   it('truncates long citation text with dots in the frontend', () => {
     component.citations = [
       {

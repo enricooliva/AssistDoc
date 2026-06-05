@@ -26,6 +26,8 @@ class ChatMessageData
                 'documentName' => $citation->document?->filename ?? 'Documento',
                 'sourceLabel' => $citation->source_label,
                 'quoteText' => $citation->quote_text,
+                'embedding' => $citation->documentSegment?->embedding_model,
+                'collection' => (string) config('services.qdrant.collection', 'assistdoc_segments'),
             ])->all()
             : null;
 

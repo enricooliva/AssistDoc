@@ -214,7 +214,7 @@ class ChatService
             $this->messageCitationRepository->replaceForMessage($assistantMessage, $citations);
         }
 
-        $assistantMessage->load(['citations.document']);
+        $assistantMessage->load(['citations.document', 'citations.documentSegment']);
 
         $this->auditService->record('chat.question_processed', $tenantId, $userId, [
             'conversation_id' => $conversationId,

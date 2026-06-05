@@ -1,6 +1,6 @@
 <?php
 
-$profilePreset = env('RAG_PROFILE_PRESET', 'default');
+$profilePreset = env('RAG_PROFILE_PRESET', 'low_spec');
 
 $profiles = [
         'default' => [

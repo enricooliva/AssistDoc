@@ -96,7 +96,7 @@ class ChatConversationRepository
         return ChatConversation::query()
             ->with([
                 'deletedBy',
-                'messages' => fn ($query) => $query->with(['citations.document'])->orderBy('created_at'),
+                'messages' => fn ($query) => $query->with(['citations.document', 'citations.documentSegment'])->orderBy('created_at'),
             ])
             ->where('tenant_id', $tenantId)
             ->where('user_id', $userId)

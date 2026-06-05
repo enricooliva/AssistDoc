@@ -143,6 +143,8 @@ class SubmitChatMessageTest extends TestCase
             ->assertJsonPath('assistantMessage.responseState', 'answered')
             ->assertJsonPath('assistantMessage.generationModel', $retrievalProfile->generation_model)
             ->assertJsonPath('assistantMessage.citations.0.documentName', 'Manuale Tenant.pdf')
+            ->assertJsonPath('assistantMessage.citations.0.embedding', $retrievalProfile->embedding_model)
+            ->assertJsonPath('assistantMessage.citations.0.collection', (string) config('services.qdrant.collection', 'assistdoc_segments'))
             ->assertJsonPath('retrievalModelProfileId', (string) $retrievalProfile->id)
             ->assertJsonPath('generationModel', $retrievalProfile->generation_model)
             ->assertJsonPath('promptContract', 'askLlamaWithContext');
@@ -230,6 +232,93 @@ class SubmitChatMessageTest extends TestCase
     }
 
     #[Test]
+    public function it_skips_invalid_citations_when_search_results_do_not_reference_existing_documents(): void
+    {
+        [$viewer, $conversation] = $this->prepareConversation();
+        $retrievalProfile = RetrievalModelProfile::query()->where('slug', config('rag.default_retrieval_profile.slug'))->firstOrFail();
+        $this->fakeAiSearchService();
+
+        $document = Document::query()->create([
+            'tenant_id' => $viewer->tenant_id,
+            'uploaded_by_user_id' => $viewer->id,
+            'filename' => 'Manuale Tenant.pdf',
+            'media_type' => 'application/pdf',
+            'storage_path' => 'documents/manuale-tenant.pdf',
+            'size_bytes' => 1024,
+            'status' => 'ready',
+            'uploaded_at' => now(),
+            'last_status_at' => now(),
+            'indexed_at' => now(),
+        ]);
+
+        $segment = DocumentSegment::query()->create([
+            'tenant_id' => $viewer->tenant_id,
+            'document_id' => $document->id,
+            'retrieval_model_profile_id' => (string) $retrievalProfile->id,
+            'chunking_profile_id' => ChunkingProfile::query()->where('slug', 'medium')->firstOrFail()->id,
+            'segment_index' => 0,
+            'content_text' => 'AssistDoc applica isolamento tenant lato server.',
+            'token_count' => 12,
+            'source_label' => 'Segmento 1',
+            'searchable' => true,
+            'activated_at' => now(),
+        ]);
+
+        app()->instance(QdrantService::class, new class($segment) extends QdrantService
+        {
+            public function __construct(private readonly DocumentSegment $segment)
+            {
+            }
+
+            public function reset(string $collection = null, ?int $vectorSize = null): array
+            {
+                return ['collection' => $collection ?? 'assistdoc_segments', 'vector_size' => $vectorSize ?? 4096];
+            }
+
+            public function search(
+                array $vector,
+                int $limit = 5,
+                string $documentType = null,
+                array $rules = [],
+                string $name = null,
+                ?int $vectorSize = null
+            ): array {
+                return [
+                    'result' => [[
+                        'score' => 0.96,
+                        'payload' => [
+                            'document_id' => '',
+                            'segment_id' => (string) $this->segment->id,
+                            'filename' => $this->segment->document?->filename ?? 'Documento',
+                            'content_text' => $this->segment->content_text,
+                            'source_label' => $this->segment->source_label,
+                            'retrieval_model_profile_id' => $this->segment->retrieval_model_profile_id ? (string) $this->segment->retrieval_model_profile_id : null,
+                            'embedding_model' => null,
+                        ],
+                    ]],
+                ];
+            }
+
+            public function upsert(array $points, string $name = null, ?int $vectorSize = null): array
+            {
+                return ['status' => 'ok'];
+            }
+        });
+
+        $token = $this->login('viewer@assistdoc.local');
+
+        $this->withToken($token)
+            ->postJson('/api/v1/chat/conversations/'.$conversation->id.'/messages', [
+                'question' => 'Come funziona l\'isolamento tenant?',
+            ])
+            ->assertOk()
+            ->assertJsonPath('assistantMessage.responseState', 'answered')
+            ->assertJsonPath('assistantMessage.citations', []);
+
+        $this->assertDatabaseCount('message_citations', 0);
+    }
+
+    #[Test]
     public function it_rejects_new_messages_for_an_archived_conversation(): void
     {
         [$viewer, $conversation] = $this->prepareConversation(status: 'archived');
@@ -305,6 +394,7 @@ class SubmitChatMessageTest extends TestCase
             'document_id' => $document->id,
             'retrieval_model_profile_id' => $retrievalModelProfileId,
             'chunking_profile_id' => ChunkingProfile::query()->where('slug', 'medium')->firstOrFail()->id,
+            'embedding_model' => RetrievalModelProfile::query()->findOrFail($retrievalModelProfileId)->embedding_model,
             'segment_index' => 0,
             'content_text' => $content,
             'token_count' => 12,

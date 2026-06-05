@@ -12,6 +12,10 @@ import { ChatCitation } from './chat.models';
       <article *ngFor="let citation of citations; let index = index" class="citations__item">
         <strong>{{ citation.documentName }}</strong>
         <span>{{ citation.sourceLabel }}</span>
+        <small *ngIf="citation.collection || citation.embedding" class="citations__meta">
+          <span *ngIf="citation.collection">Collection: {{ citation.collection }}</span>
+          <span *ngIf="citation.embedding">Embedding: {{ citation.embedding }}</span>
+        </small>
         <p [title]="citation.quoteText">{{ displayText(citation.quoteText, index) }}</p>
         <button
           *ngIf="isTruncatable(citation.quoteText)"
@@ -35,6 +39,13 @@ import { ChatCitation } from './chat.models';
     .citations__item { display: grid; gap: 4px; padding: 12px 0; border-top: 1px solid #edf1f5; }
     .citations__item:first-of-type { border-top: 0; padding-top: 0; }
     .citations__item span { color: #5d6b79; font-size: 14px; }
+    .citations__meta {
+      display: grid;
+      gap: 2px;
+      color: #6b7785;
+      font-size: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+    }
     .citations__item p { margin: 0; color: #23313f; }
     .citations__action {
       justify-self: start;

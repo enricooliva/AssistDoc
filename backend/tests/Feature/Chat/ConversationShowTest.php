@@ -77,6 +77,7 @@ class ConversationShowTest extends TestCase
             'segment_index' => 0,
             'content_text' => 'AssistDoc applica isolamento tenant lato server a tutte le risorse.',
             'source_label' => 'Segmento 1',
+            'embedding_model' => 'qwen3-embedding:0.6b',
             'searchable' => true,
         ]);
 
@@ -99,7 +100,9 @@ class ConversationShowTest extends TestCase
             ->assertJsonPath('messages.0.id', (string) $userMessage->id)
             ->assertJsonPath('messages.1.responseState', 'answered')
             ->assertJsonPath('messages.1.generationModel', 'qwen3')
-            ->assertJsonPath('messages.1.citations.0.documentName', 'Manuale Sicurezza.pdf');
+            ->assertJsonPath('messages.1.citations.0.documentName', 'Manuale Sicurezza.pdf')
+            ->assertJsonPath('messages.1.citations.0.embedding', 'qwen3-embedding:0.6b')
+            ->assertJsonPath('messages.1.citations.0.collection', (string) config('services.qdrant.collection', 'assistdoc_segments'));
     }
 
     #[Test]

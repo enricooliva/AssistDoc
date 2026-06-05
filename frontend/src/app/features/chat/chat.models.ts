@@ -5,6 +5,8 @@ export interface ChatCitation {
   documentName: string;
   sourceLabel: string;
   quoteText: string;
+  embedding?: string | null;
+  collection?: string | null;
 }
 
 export interface ChatMessage {
