@@ -91,7 +91,7 @@ class DocumentService
 
         $document = DB::transaction(function () use ($document, $tenantId, $userId): Document {
             $document = $this->documentRepository->softDelete($document, $userId);
-            $this->documentSegmentRepository->deleteForDocument($document);
+            $this->documentSegmentRepository->hardDeleteForDocument($document);
             $this->auditService->record(
                 'document.deleted',
                 $tenantId,

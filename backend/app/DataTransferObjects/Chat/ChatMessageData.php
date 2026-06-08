@@ -27,7 +27,10 @@ class ChatMessageData
                 'sourceLabel' => $citation->source_label,
                 'quoteText' => $citation->quote_text,
                 'embedding' => $citation->documentSegment?->embedding_model,
-                'collection' => (string) config('services.qdrant.collection', 'assistdoc_segments'),
+                'collection' => (string) config('services.qdrant.collection', 'assistdoc_segments').'_' . (
+                    $citation->documentSegment?->retrievalModelProfile?->embedding_dimensions
+                    ?? (int) config('rag.default_retrieval_profile.embedding_dimensions', 4096)
+                ),
             ])->all()
             : null;
 

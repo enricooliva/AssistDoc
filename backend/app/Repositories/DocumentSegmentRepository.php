@@ -65,6 +65,14 @@ class DocumentSegmentRepository
             ]);
     }
 
+    public function hardDeleteForDocument(Document $document): void
+    {
+        DocumentSegment::query()
+            ->where('tenant_id', $document->tenant_id)
+            ->where('document_id', $document->id)
+            ->delete();
+    }
+
     public function semanticSearch(
         string $tenantId,
         string $query,

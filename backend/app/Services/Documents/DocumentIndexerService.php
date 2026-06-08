@@ -132,7 +132,7 @@ class DocumentIndexerService
                         'document_status' => 'ready',
                     ],
                 ],
-            ], $collection, $this->embeddingService->getEmbeddingDimensions($profile));
+            ], $collection, $this->embeddingService->getEmbeddingDimensions($profile), $profile?->slug);
 
             $indexed++;
         }
@@ -142,12 +142,14 @@ class DocumentIndexerService
 
     public function deleteDocumentVectors(
         Document $document,
-        ?string $retrievalModelProfileId = null,
-        ?string $chunkingProfileId = null,
-        ?string $collection = null,
-        ?int $vectorSize = null
+        ?string $collection = null
     ): void
     {
+        $retrievalModelProfileId = $document->active_retrieval_model_profile_id
+            ? (string) $document->active_retrieval_model_profile_id
+            : null;
+        $vectorSize = $document->activeRetrievalModelProfile?->embedding_dimensions;
+
         $must = [
             [
                 'key' => 'tenant_id',
@@ -163,13 +165,6 @@ class DocumentIndexerService
             $must[] = [
                 'key' => 'retrieval_model_profile_id',
                 'match' => ['value' => $retrievalModelProfileId],
-            ];
-        }
-
-        if ($chunkingProfileId !== null) {
-            $must[] = [
-                'key' => 'chunking_profile_id',
-                'match' => ['value' => $chunkingProfileId],
             ];
         }
 

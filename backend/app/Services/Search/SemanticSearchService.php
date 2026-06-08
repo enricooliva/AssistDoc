@@ -49,7 +49,7 @@ class SemanticSearchService
             null,
             $rules,
             null,
-            $this->embeddingService->getEmbeddingDimensions($profile)
+            $this->embeddingService->getEmbeddingDimensions($profile)            
         ));
 
         $results = $vectorMatches !== []

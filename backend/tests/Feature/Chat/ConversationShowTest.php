@@ -102,7 +102,7 @@ class ConversationShowTest extends TestCase
             ->assertJsonPath('messages.1.generationModel', 'qwen3')
             ->assertJsonPath('messages.1.citations.0.documentName', 'Manuale Sicurezza.pdf')
             ->assertJsonPath('messages.1.citations.0.embedding', 'qwen3-embedding:0.6b')
-            ->assertJsonPath('messages.1.citations.0.collection', (string) config('services.qdrant.collection', 'assistdoc_segments'));
+            ->assertJsonPath('messages.1.citations.0.collection', (string) config('services.qdrant.collection', 'assistdoc_segments').'_' . (string) config('rag.default_retrieval_profile.embedding_dimensions'));
     }
 
     #[Test]

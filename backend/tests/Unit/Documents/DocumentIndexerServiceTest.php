@@ -69,6 +69,7 @@ class DocumentIndexerServiceTest extends TestCase
                     }),
                     Mockery::any(),
                     Mockery::any(),
+                    null,
                 )
                 ->andReturn(['status' => 'ok']);
         });
@@ -158,5 +159,42 @@ class DocumentIndexerServiceTest extends TestCase
         $this->assertSame($profile->embedding_model, $segments[0]['embedding_model']);
         $this->assertSame((string) $chunkingProfile->id, (string) $segments[0]['chunking_profile_id']);
         $this->assertSame(10, $segments[0]['token_count']);
+    }
+
+    #[Test]
+    public function it_deletes_vectors_using_the_document_active_retrieval_profile_and_vector_size(): void
+    {
+        $profile = RetrievalModelProfile::query()->where('slug', config('rag.default_retrieval_profile.slug'))->firstOrFail();
+
+        $document = new Document();
+        $document->forceFill([
+            'id' => 31,
+            'tenant_id' => 1,
+            'active_retrieval_model_profile_id' => $profile->id,
+        ]);
+        $document->setRelation('activeRetrievalModelProfile', $profile);
+
+        $this->mock(QdrantService::class, function ($mock) use ($document, $profile): void {
+            $mock->shouldReceive('deleteByFilter')
+                ->once()
+                ->with(
+                    Mockery::on(function (array $filter) use ($document, $profile): bool {
+                        $must = $filter['must'] ?? [];
+
+                        return $must[0]['key'] === 'tenant_id'
+                            && $must[0]['match']['value'] === (string) $document->tenant_id
+                            && $must[1]['key'] === 'document_id'
+                            && $must[1]['match']['value'] === (string) $document->id
+                            && $must[2]['key'] === 'retrieval_model_profile_id'
+                            && $must[2]['match']['value'] === (string) $profile->id;
+                    }),
+                    null,
+                    $profile->embedding_dimensions,
+                    $profile->slug,
+                );
+        });
+
+        $service = app(DocumentIndexerService::class);
+        $service->deleteDocumentVectors($document);
     }
 }

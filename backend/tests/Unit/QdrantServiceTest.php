@@ -21,10 +21,13 @@ class QdrantServiceTest extends TestCase
         $service = app(QdrantService::class);
         $result = $service->reset();
 
-        $expectedVectorSize = app(EmbeddingService::class)->getEmbeddingDimensions();
+        $expectedVectorSize = (int) config('rag.default_retrieval_profile.embedding_dimensions');
         $collection = $result['collection'];
 
-        $this->assertStringStartsWith((string) config('services.qdrant.collection'), $collection);
+        $this->assertSame(
+            (string) config('services.qdrant.collection').'_' . (string) config('rag.default_retrieval_profile.embedding_dimensions'),
+            $collection
+        );
         $this->assertSame($expectedVectorSize, $result['vector_size']);
         $recorded = Http::recorded();
 
@@ -37,7 +40,7 @@ class QdrantServiceTest extends TestCase
     #[Test]
     public function it_clears_all_points_without_recreating_the_collection(): void
     {
-        $collection = (string) config('services.qdrant.collection');
+        $collection = (string) config('services.qdrant.collection').'_' . (string) config('rag.default_retrieval_profile.embedding_dimensions');
         $baseUrl = rtrim((string) config('services.qdrant.url'), '/');
 
         Http::fake([

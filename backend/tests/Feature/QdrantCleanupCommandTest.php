@@ -16,14 +16,14 @@ class QdrantCleanupCommandTest extends TestCase
                 ->once()
                 ->with(null)
                 ->andReturn([
-                    'collection' => config('services.qdrant.collection'),
+                    'collection' => config('services.qdrant.collection').'_' . config('rag.default_retrieval_profile.embedding_dimensions'),
                     'vector_size' => 1024,
                     'created' => ['result' => 'ok'],
                 ]);
         });
 
         $this->artisan('qdrant:cleanup', ['--force' => true])
-            ->expectsOutput('Collezione Qdrant pulita e ricreata: '.config('services.qdrant.collection'))
+            ->expectsOutput('Collezione Qdrant pulita e ricreata: '.config('services.qdrant.collection').'_' . config('rag.default_retrieval_profile.embedding_dimensions'))
             ->expectsOutput('Dimensione vettore: 1024')
             ->assertExitCode(0);
     }
@@ -36,7 +36,7 @@ class QdrantCleanupCommandTest extends TestCase
                 ->once()
                 ->with(null)
                 ->andReturn([
-                    'collection' => config('services.qdrant.collection'),
+                    'collection' => config('services.qdrant.collection').'_' . config('rag.default_retrieval_profile.embedding_dimensions'),
                     'deleted' => 12,
                     'chunks' => 1,
                 ]);
@@ -45,7 +45,7 @@ class QdrantCleanupCommandTest extends TestCase
         });
 
         $this->artisan('qdrant:cleanup', ['--force' => true, '--points-only' => true])
-            ->expectsOutput('Collezione Qdrant svuotata: '.config('services.qdrant.collection'))
+            ->expectsOutput('Collezione Qdrant svuotata: '.config('services.qdrant.collection').'_' . config('rag.default_retrieval_profile.embedding_dimensions'))
             ->expectsOutput('Punti eliminati: 12')
             ->assertExitCode(0);
     }

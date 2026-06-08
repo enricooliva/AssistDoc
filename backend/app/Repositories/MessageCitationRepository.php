@@ -25,6 +25,7 @@ class MessageCitationRepository
             // }
 
             // $segment = DocumentSegment::query()
+            //     ->with('document')
             //     ->whereKey($documentSegmentId)
             //     ->where('tenant_id', $message->tenant_id)
             //     ->first();
@@ -39,12 +40,12 @@ class MessageCitationRepository
             //     continue;
             // }
 
-            // if (! Document::query()
-            //     ->whereKey($documentId)
-            //     ->where('tenant_id', $message->tenant_id)
-            //     ->exists()) {
-            //     continue;
-            // }
+            if (! Document::query()
+                ->whereKey($documentId)
+                ->where('tenant_id', $message->tenant_id)
+                ->exists()) {
+                continue;
+            }
 
             MessageCitation::query()->create([
                 'tenant_id' => $message->tenant_id,

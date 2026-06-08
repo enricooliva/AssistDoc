@@ -211,10 +211,11 @@ class ChatService
         );
 
         if ($citations !== []) {
+            //verifica che i dati letti da qdrant siano ancora presenti nel database
             $this->messageCitationRepository->replaceForMessage($assistantMessage, $citations);
         }
 
-        $assistantMessage->load(['citations.document', 'citations.documentSegment']);
+        $assistantMessage->load(['citations.document', 'citations.documentSegment.retrievalModelProfile']);
 
         $this->auditService->record('chat.question_processed', $tenantId, $userId, [
             'conversation_id' => $conversationId,

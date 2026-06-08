@@ -34,7 +34,9 @@ class SubmitChatMessageTest extends TestCase
 
             public function reset(string $collection = null, ?int $vectorSize = null): array
             {
-                return ['collection' => $collection ?? 'assistdoc_segments', 'vector_size' => $vectorSize ?? 4096];
+                $collection ??= 'assistdoc_segments';
+
+                return ['collection' => $collection.'_'.($vectorSize ?? 4096), 'vector_size' => $vectorSize ?? 4096];
             }
 
             public function search(
@@ -43,7 +45,7 @@ class SubmitChatMessageTest extends TestCase
                 string $documentType = null,
                 array $rules = [],
                 string $name = null,
-                ?int $vectorSize = null
+                ?int $vectorSize = null,
             ): array {
                 $tenantId = null;
                 $retrievalModelProfileId = null;
@@ -144,7 +146,7 @@ class SubmitChatMessageTest extends TestCase
             ->assertJsonPath('assistantMessage.generationModel', $retrievalProfile->generation_model)
             ->assertJsonPath('assistantMessage.citations.0.documentName', 'Manuale Tenant.pdf')
             ->assertJsonPath('assistantMessage.citations.0.embedding', $retrievalProfile->embedding_model)
-            ->assertJsonPath('assistantMessage.citations.0.collection', (string) config('services.qdrant.collection', 'assistdoc_segments'))
+            ->assertJsonPath('assistantMessage.citations.0.collection', (string) config('services.qdrant.collection', 'assistdoc_segments').'_' . (string) $retrievalProfile->embedding_dimensions)
             ->assertJsonPath('retrievalModelProfileId', (string) $retrievalProfile->id)
             ->assertJsonPath('generationModel', $retrievalProfile->generation_model)
             ->assertJsonPath('promptContract', 'askLlamaWithContext');
@@ -273,7 +275,9 @@ class SubmitChatMessageTest extends TestCase
 
             public function reset(string $collection = null, ?int $vectorSize = null): array
             {
-                return ['collection' => $collection ?? 'assistdoc_segments', 'vector_size' => $vectorSize ?? 4096];
+                $collection ??= 'assistdoc_segments';
+
+                return ['collection' => $collection.'_'.($vectorSize ?? 4096), 'vector_size' => $vectorSize ?? 4096];
             }
 
             public function search(
@@ -282,7 +286,7 @@ class SubmitChatMessageTest extends TestCase
                 string $documentType = null,
                 array $rules = [],
                 string $name = null,
-                ?int $vectorSize = null
+                ?int $vectorSize = null,
             ): array {
                 return [
                     'result' => [[
@@ -316,7 +320,7 @@ class SubmitChatMessageTest extends TestCase
             ->assertJsonPath('assistantMessage.responseState', 'answered')
             ->assertJsonPath('assistantMessage.citations.0.documentName', 'Manuale Tenant.pdf')
             ->assertJsonPath('assistantMessage.citations.0.embedding', $retrievalProfile->embedding_model)
-            ->assertJsonPath('assistantMessage.citations.0.collection', (string) config('services.qdrant.collection', 'assistdoc_segments'));
+            ->assertJsonPath('assistantMessage.citations.0.collection', (string) config('services.qdrant.collection', 'assistdoc_segments').'_' . (string) $retrievalProfile->embedding_dimensions);
 
         $this->assertDatabaseCount('message_citations', 1);
     }

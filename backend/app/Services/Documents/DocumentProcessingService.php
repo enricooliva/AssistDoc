@@ -135,7 +135,6 @@ class DocumentProcessingService
         ?string $userId = null,
     ): array
     {
-        $profile = $this->retrievalModelProfileService->defaultAvailable();
         $chunkingProfiles = $this->chunkingProfileService->defaultProfiles();
         $document = $this->documentRepository->findModel($tenantId, $documentId);
 
@@ -149,13 +148,7 @@ class DocumentProcessingService
             'preparationRunId' => null,
         ];
 
-        $this->documentIndexerService->deleteDocumentVectors(
-                $document,
-                null,
-                null,
-                null,
-                (int) $profile->embedding_dimensions,
-        );
+        $this->documentIndexerService->deleteDocumentVectors($document);
 
         foreach (array_values($chunkingProfiles) as $chunkingProfile) {
             $lastResult = $this->process(

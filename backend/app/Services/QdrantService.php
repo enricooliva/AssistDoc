@@ -30,7 +30,10 @@ class QdrantService
         // Build collection name: e.g. documenti_unicollstud
         $this->collectionName = (string) config('services.qdrant.collection', 'assistdoc_segments');
 
-        $this->vectorSize = $this->embeddingService->getEmbeddingDimensions();
+        $this->vectorSize = (int) config(
+            'rag.default_retrieval_profile.embedding_dimensions',
+            $this->embeddingService->getEmbeddingDimensions()
+        );
     }
 
     public function getCollection(string $name = null, ?int $vectorSize = null): array
@@ -252,7 +255,7 @@ class QdrantService
         ?string $documentType = null,
         array $rules = [],
         string $name = null,
-        ?int $vectorSize = null
+        ?int $vectorSize = null,
     ): array
     {
         $vector = $this->embeddingService->generateEmbedding($text);
@@ -287,7 +290,7 @@ class QdrantService
         string $documentType = null,
         array $rules = [],
         string $name = null,
-        ?int $vectorSize = null
+        ?int $vectorSize = null,
     ): array
     {
         $name = $this->resolveCollectionName($name, $vectorSize);
@@ -400,9 +403,7 @@ class QdrantService
     {
         $baseName = $name !== null && $name !== '' ? $name : $this->collectionName;
 
-        if ($vectorSize === null) {
-            return $baseName;
-        }
+        $vectorSize ??= $this->vectorSize;
 
         $suffix = '_'.$vectorSize;
 
