@@ -39,13 +39,15 @@ After changing the preset, clear the Laravel config cache and rerun the seeders 
 docker compose --env-file .env.production -f docker-compose-prod.yml exec ollama ollama pull qwen3
 docker compose --env-file .env.production -f docker-compose-prod.yml exec ollama ollama pull qwen3-embedding
 
+## Frontend creazione aggiornamneto
 sudo rm -rf frontend/dist
 docker compose --env-file .env.production -f docker-compose-prod.yml run --rm frontend-build
 docker compose --env-file .env.production -f docker-compose-prod.yml up -d --force-recreate nginx
 
 ## Gestione
 docker compose --env-file .env.production -f docker-compose-prod.yml exec backend php artisan config:clear
-docker compose --env-file .env.production -f docker-compose-prod.yml up -d --force-recreate backend worker scheduler
+docker compose --env-file .env.production -f docker-compose-prod.yml up -d --force-recreate backend nginx
+docker compose --env-file .env.production -f docker-compose-prod.yml exec backend php artisan migrate:fresh --seed
 
 ## Ngnix riavvia
 docker compose --env-file .env.production -f docker-compose-prod.yml up -d --build --force-recreate backend nginx
@@ -57,7 +59,13 @@ $r=json_decode(shell_exec("curl -s http://ollama:11434/api/embed -H \"Content-Ty
 echo count($r["embeddings"][0]).PHP_EOL;
 '
 ## Cambiato una linea di codice php Ricostruisco:
-docker compose --env-file .env.production -f docker-compose-prod.yml up -d --build --force-recreate backend worker scheduler
+docker compose --env-file .env.production -f docker-compose-prod.yml up -d --build --force-recreate backend worker scheduler nginx
 
 ## Controllo log laravel 
 docker compose --env-file .env.production -f docker-compose-prod.yml exec backend tail -n 100 storage/logs/laravel.log
+
+## Cancellare la collection 
+docker compose --env-file .env.production -f docker-compose-prod.yml exec backend   curl -X DELETE http://qdrant:6333/collections/assistdoc_segments_4096
+
+## Lista delle collection
+docker compose --env-file .env.production -f docker-compose-prod.yml exec backend curl http://qdrant:6333/collections
