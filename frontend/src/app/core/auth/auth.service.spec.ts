@@ -1,6 +1,7 @@
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { Router } from '@angular/router';
 import { apiUrl } from '../api/api-url';
 import { authInterceptor } from '../http/auth.interceptor';
 import { AuthService } from './auth.service';
@@ -8,15 +9,19 @@ import { AuthService } from './auth.service';
 describe('AuthService', () => {
   let service: AuthService;
   let httpMock: HttpTestingController;
+  let router: jasmine.SpyObj<Router>;
 
   beforeEach(() => {
     localStorage.clear();
+    router = jasmine.createSpyObj<Router>('Router', ['navigateByUrl']);
+    router.navigateByUrl.and.resolveTo(true);
 
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(withInterceptors([authInterceptor])),
         provideHttpClientTesting(),
         AuthService,
+        { provide: Router, useValue: router },
       ],
     });
 
@@ -87,6 +92,7 @@ describe('AuthService', () => {
 
     expect(service.session()).toBeNull();
     expect(localStorage.getItem('assistdoc.session')).toBeNull();
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/sign-in');
   });
 
   it('resets the session when restoreSession receives 401', async () => {
@@ -109,11 +115,14 @@ describe('AuthService', () => {
     );
 
     TestBed.resetTestingModule();
+    router = jasmine.createSpyObj<Router>('Router', ['navigateByUrl']);
+    router.navigateByUrl.and.resolveTo(true);
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(withInterceptors([authInterceptor])),
         provideHttpClientTesting(),
         AuthService,
+        { provide: Router, useValue: router },
       ],
     });
 
@@ -131,6 +140,7 @@ describe('AuthService', () => {
     await promise;
 
     expect(service.session()).toBeNull();
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/sign-in');
   });
 
   it('stores action-required state when MFA is requested', async () => {

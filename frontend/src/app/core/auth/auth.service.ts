@@ -1,5 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { apiUrl } from '../api/api-url';
 import {
@@ -18,6 +19,7 @@ const STORAGE_KEY = 'assistdoc.session';
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
 
   readonly session = signal<SessionState | null>(this.readStoredSession());
   readonly feedback = signal('');
@@ -59,7 +61,7 @@ export class AuthService {
         tenant: response.user.tenant,
       });
     } catch {
-      this.clearSession(false);
+      this.handleUnauthorized();
     }
   }
 
@@ -208,6 +210,7 @@ export class AuthService {
       }
     } finally {
       this.clearSession();
+      await this.router.navigateByUrl('/sign-in');
     }
   }
 
@@ -224,6 +227,7 @@ export class AuthService {
   handleUnauthorized(message = 'La sessione è scaduta. Effettua nuovamente l\'accesso.'): void {
     this.clearSession(false);
     this.feedback.set(message);
+    void this.router.navigateByUrl('/sign-in');
   }
 
   setAccessDenied(message = 'Operazione non consentita per il ruolo corrente.'): void {
