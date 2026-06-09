@@ -17,6 +17,7 @@ class Document extends Model
     protected $fillable = [
         'tenant_id',
         'uploaded_by_user_id',
+        'source_type',
         'active_retrieval_model_profile_id',
         'active_chunking_profile_id',
         'active_preparation_run_id',

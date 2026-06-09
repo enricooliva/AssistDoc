@@ -234,6 +234,31 @@ class SubmitChatMessageTest extends TestCase
     }
 
     #[Test]
+    public function it_returns_direct_text_documents_as_chat_citations_when_they_are_searchable(): void
+    {
+        [$viewer, $conversation] = $this->prepareConversation();
+        $retrievalProfile = RetrievalModelProfile::query()->where('slug', config('rag.default_retrieval_profile.slug'))->firstOrFail();
+        $this->fakeAiSearchService();
+        $this->prepareKnowledgeBase(
+            $viewer,
+            'Il testo incollato resta ricercabile e citabile nella chat del tenant.',
+            (string) $retrievalProfile->id,
+            'Nota operativa',
+            'text',
+        );
+
+        $token = $this->login('viewer@assistdoc.local');
+
+        $this->withToken($token)
+            ->postJson('/api/v1/chat/conversations/'.$conversation->id.'/messages', [
+                'question' => 'Il testo incollato può essere citato?',
+            ])
+            ->assertOk()
+            ->assertJsonPath('assistantMessage.responseState', 'answered')
+            ->assertJsonPath('assistantMessage.citations.0.documentName', 'Nota operativa');
+    }
+
+    #[Test]
     public function it_recovers_citations_when_the_search_payload_only_provides_a_valid_segment_id(): void
     {
         [$viewer, $conversation] = $this->prepareConversation();
@@ -379,15 +404,22 @@ class SubmitChatMessageTest extends TestCase
         return [$viewer, $conversation];
     }
 
-    private function prepareKnowledgeBase(User $viewer, string $content, ?string $retrievalModelProfileId = null): void
+    private function prepareKnowledgeBase(
+        User $viewer,
+        string $content,
+        ?string $retrievalModelProfileId = null,
+        string $filename = 'Manuale Tenant.pdf',
+        string $sourceType = 'file',
+    ): void
     {
         $retrievalModelProfileId ??= (string) RetrievalModelProfile::query()->where('slug', config('rag.default_retrieval_profile.slug'))->firstOrFail()->id;
 
         $document = Document::query()->create([
             'tenant_id' => $viewer->tenant_id,
             'uploaded_by_user_id' => $viewer->id,
-            'filename' => 'Manuale Tenant.pdf',
-            'media_type' => 'application/pdf',
+            'source_type' => $sourceType,
+            'filename' => $filename,
+            'media_type' => $sourceType === 'text' ? 'text/plain' : 'application/pdf',
             'storage_path' => 'documents/manuale-tenant.pdf',
             'size_bytes' => 1024,
             'status' => 'ready',

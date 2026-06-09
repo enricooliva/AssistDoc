@@ -1,4 +1,5 @@
-export type DocumentStatus = 'accepted' | 'queued' | 'processing' | 'ready' | 'failed';
+export type DocumentStatus = 'accepted' | 'queued' | 'processing' | 'ready' | 'failed' | 'deleted';
+export type DocumentSourceType = 'file' | 'text';
 
 export interface DocumentUserSummary {
   id: string;
@@ -8,6 +9,7 @@ export interface DocumentUserSummary {
 export interface DocumentListItem {
   id: string;
   filename: string;
+  sourceType: DocumentSourceType;
   mediaType: string;
   sizeBytes: number;
   tags: string[];
@@ -36,6 +38,12 @@ export interface DocumentListResponse {
 export interface DocumentRetryResponse {
   documentId: string;
   status: DocumentStatus;
+}
+
+export interface DocumentTextCreatePayload {
+  sourceLabel: string;
+  text: string;
+  tags?: string[];
 }
 
 export interface DocumentDeleteResponse {

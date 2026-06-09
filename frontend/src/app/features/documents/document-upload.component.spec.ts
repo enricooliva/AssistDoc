@@ -19,6 +19,13 @@ class DocumentApiServiceStub {
   uploadDocument = jasmine.createSpy('uploadDocument').and.resolveTo({
     id: 'doc-1',
     filename: 'manuale.txt',
+    sourceType: 'file',
+    tags: [],
+  });
+  createTextDocument = jasmine.createSpy('createTextDocument').and.resolveTo({
+    id: 'doc-2',
+    filename: 'Procedura interna',
+    sourceType: 'text',
     tags: [],
   });
 
@@ -63,6 +70,11 @@ describe('DocumentUploadComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Tag');
   });
 
+  it('offers both file upload and direct text modes', () => {
+    expect(fixture.nativeElement.textContent).toContain('Carica file');
+    expect(fixture.nativeElement.textContent).toContain('Incolla testo');
+  });
+
   it('renders a single explicit action to choose the file', () => {
     const text = fixture.nativeElement.textContent as string;
 
@@ -103,5 +115,16 @@ describe('DocumentUploadComponent', () => {
     expect(errorAlerts.length).toBe(1);
     expect(feedbackAlerts.length).toBe(0);
     expect(fixture.nativeElement.textContent).toContain('Caricamento non riuscito.');
+  });
+
+  it('shows an inline validation message when direct text is missing', async () => {
+    const component = fixture.componentInstance as DocumentUploadComponent;
+    component.switchMode('text');
+    fixture.detectChanges();
+
+    await component.submit();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Titolo e testo sono obbligatori per il contenuto incollato.');
   });
 });

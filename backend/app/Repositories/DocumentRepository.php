@@ -101,6 +101,7 @@ class DocumentRepository
         return [
             'id' => (string) $document->id,
             'filename' => $document->filename,
+            'sourceType' => $document->source_type ?? 'file',
             'mediaType' => $document->media_type,
             'sizeBytes' => $document->size_bytes,
             'tags' => $document->tags ?? [],

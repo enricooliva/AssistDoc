@@ -27,7 +27,13 @@ class ChunkingProfileService
     public function resolve(?string $chunkingProfileId = null): ChunkingProfile
     {
         if ($chunkingProfileId === null || $chunkingProfileId === '') {
-            throw new \RuntimeException('È necessario selezionare un profilo di segmentazione.');
+            $profile = $this->repository->firstActive();
+
+            if (! $profile) {
+                throw new \RuntimeException('È necessario selezionare un profilo di segmentazione.');
+            }
+
+            return $profile;
         }
 
         $profile = $this->repository->find($chunkingProfileId);

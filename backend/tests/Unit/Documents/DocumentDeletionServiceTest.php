@@ -18,6 +18,7 @@ class DocumentDeletionServiceTest extends TestCase
         $document = new Document([
             'tenant_id' => 'tenant-1',
             'uploaded_by_user_id' => 'user-1',
+            'source_type' => 'text',
             'filename' => 'manuale.txt',
             'media_type' => 'text/plain',
             'storage_path' => 'documents/tenant-1/manuale.txt',

@@ -42,8 +42,9 @@ class DocumentUploadTest extends TestCase
 
         $response->assertCreated()
             ->assertJsonPath('filename', 'manuale.txt')
+            ->assertJsonPath('sourceType', 'file')
             ->assertJsonPath('status', 'ready')
-            ->assertJsonPath('activeChunkingProfile.name', 'Large')
+            ->assertJsonPath('activeChunkingProfile.name', 'Medium')
             ->assertJsonPath('tags.0', 'manuale')
             ->assertJsonPath('tags.1', 'tenant');
 
@@ -106,8 +107,9 @@ class DocumentUploadTest extends TestCase
 
         $response->assertCreated()
             ->assertJsonPath('filename', 'manuale.pdf')
+            ->assertJsonPath('sourceType', 'file')
             ->assertJsonPath('status', 'ready')
-            ->assertJsonPath('activeChunkingProfile.name', 'Large');
+            ->assertJsonPath('activeChunkingProfile.name', 'Medium');
 
         $documentId = (string) $response->json('id');
 
@@ -122,6 +124,78 @@ class DocumentUploadTest extends TestCase
             'content_text' => 'AssistDoc estrae il contenuto dai PDF caricati prima di indicizzarli.',
         ]);
         $this->assertDatabaseCount('document_segments', 1);
+    }
+
+    #[Test]
+    public function operator_can_submit_direct_text_and_trigger_ingestion(): void
+    {
+        $token = (string) $this->postJson('/api/v1/auth/login', [
+            'email' => 'operator@assistdoc.local',
+            'password' => 'password123',
+        ])->json('token');
+
+        $response = $this->withToken($token)
+            ->postJson('/api/v1/documents/text', [
+                'sourceLabel' => 'Procedura interna',
+                'text' => 'AssistDoc tratta il testo incollato come contenuto ricercabile del tenant.',
+                'tags' => ['procedura', 'tenant'],
+            ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('filename', 'Procedura interna')
+            ->assertJsonPath('sourceType', 'text')
+            ->assertJsonPath('status', 'ready')
+            ->assertJsonPath('mediaType', 'text/plain');
+
+        $documentId = (string) $response->json('id');
+
+        $this->assertDatabaseHas('documents', [
+            'id' => $documentId,
+            'filename' => 'Procedura interna',
+            'source_type' => 'text',
+            'media_type' => 'text/plain',
+        ]);
+        $this->assertDatabaseHas('document_segments', [
+            'document_id' => $documentId,
+            'searchable' => true,
+            'content_text' => 'AssistDoc tratta il testo incollato come contenuto ricercabile del tenant.',
+        ]);
+    }
+
+    #[Test]
+    public function direct_text_requires_non_empty_content(): void
+    {
+        $token = (string) $this->postJson('/api/v1/auth/login', [
+            'email' => 'operator@assistdoc.local',
+            'password' => 'password123',
+        ])->json('token');
+
+        $this->withToken($token)
+            ->postJson('/api/v1/documents/text', [
+                'sourceLabel' => 'Vuoto',
+                'text' => '   ',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'VALIDATION_FAILED');
+    }
+
+    #[Test]
+    public function direct_text_is_limited_by_the_configured_max_input_length(): void
+    {
+        config()->set('rag.text_ingestion_max_input_chars', 10);
+
+        $token = (string) $this->postJson('/api/v1/auth/login', [
+            'email' => 'operator@assistdoc.local',
+            'password' => 'password123',
+        ])->json('token');
+
+        $this->withToken($token)
+            ->postJson('/api/v1/documents/text', [
+                'sourceLabel' => 'Troppo lungo',
+                'text' => '12345678901',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'VALIDATION_FAILED');
     }
 
     private function buildPdf(string $text): string

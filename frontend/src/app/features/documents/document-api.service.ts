@@ -9,6 +9,7 @@ import {
   DocumentListItem,
   DocumentListResponse,
   DocumentRetryResponse,
+  DocumentTextCreatePayload,
   PreparationRunDetail,
   PreparationRunResponse,
 } from './document.models';
@@ -68,6 +69,24 @@ export class DocumentApiService {
       return document;
     } catch (error) {
       const message = this.extractError(error, 'Caricamento non riuscito.');
+      this.error.set(message);
+      throw new Error(message);
+    }
+  }
+
+  async createTextDocument(payload: DocumentTextCreatePayload): Promise<DocumentListItem> {
+    this.error.set('');
+
+    try {
+      const document = await firstValueFrom(
+        this.http.post<DocumentListItem>(apiUrl('/api/v1/documents/text'), payload),
+      );
+
+      this.documents.update((items) => [document, ...items.filter((item) => item.id !== document.id)]);
+
+      return document;
+    } catch (error) {
+      const message = this.extractError(error, 'Salvataggio del testo non riuscito.');
       this.error.set(message);
       throw new Error(message);
     }

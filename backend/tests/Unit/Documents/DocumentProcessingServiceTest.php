@@ -38,6 +38,7 @@ class DocumentProcessingServiceTest extends TestCase
         $document = Document::query()->create([
             'tenant_id' => $tenant->id,
             'uploaded_by_user_id' => $operator->id,
+            'source_type' => 'file',
             'filename' => 'manuale.txt',
             'media_type' => 'text/plain',
             'storage_path' => 'documents/'.$tenant->id.'/manuale.txt',
@@ -70,6 +71,7 @@ class DocumentProcessingServiceTest extends TestCase
         $document = Document::query()->create([
             'tenant_id' => $tenant->id,
             'uploaded_by_user_id' => $operator->id,
+            'source_type' => 'file',
             'filename' => 'vuoto.txt',
             'media_type' => 'text/plain',
             'storage_path' => 'documents/'.$tenant->id.'/vuoto.txt',
@@ -101,6 +103,7 @@ class DocumentProcessingServiceTest extends TestCase
         $document = Document::query()->create([
             'tenant_id' => $tenant->id,
             'uploaded_by_user_id' => $operator->id,
+            'source_type' => 'file',
             'filename' => 'manuale.pdf',
             'media_type' => 'application/pdf',
             'storage_path' => 'documents/'.$tenant->id.'/manuale.pdf',
@@ -137,6 +140,7 @@ class DocumentProcessingServiceTest extends TestCase
         $document = Document::query()->create([
             'tenant_id' => $tenant->id,
             'uploaded_by_user_id' => $operator->id,
+            'source_type' => 'file',
             'filename' => 'manuale.txt',
             'media_type' => 'text/plain',
             'storage_path' => 'documents/'.$tenant->id.'/manuale.txt',
@@ -153,10 +157,6 @@ class DocumentProcessingServiceTest extends TestCase
             'overlap_tokens' => 10,
             'active' => true,
         ]);
-
-        $this->mock(QdrantService::class, function ($mock): void {
-            $mock->shouldReceive('deleteByFilter')->once();
-        });
 
         $result = app(DocumentProcessingService::class)->process(
             (string) $tenant->id,
@@ -197,6 +197,7 @@ class DocumentProcessingServiceTest extends TestCase
         $document = Document::query()->create([
             'tenant_id' => $tenant->id,
             'uploaded_by_user_id' => $operator->id,
+            'source_type' => 'file',
             'filename' => 'manuale.txt',
             'media_type' => 'text/plain',
             'storage_path' => 'documents/'.$tenant->id.'/manuale.txt',
@@ -222,6 +223,36 @@ class DocumentProcessingServiceTest extends TestCase
             ->where('chunking_profile_id', $large->id)
             ->whereNull('retired_at')
             ->count());
+    }
+
+    #[Test]
+    public function it_processes_direct_text_documents_stored_as_private_plain_text_artifacts(): void
+    {
+        $tenant = Tenant::query()->where('slug', 'assistdoc-demo')->firstOrFail();
+        $operator = User::query()->where('email', 'operator@assistdoc.local')->firstOrFail();
+        Storage::put('documents/'.$tenant->id.'/procedura.txt', 'AssistDoc indicizza anche il testo incollato.');
+
+        $document = Document::query()->create([
+            'tenant_id' => $tenant->id,
+            'uploaded_by_user_id' => $operator->id,
+            'source_type' => 'text',
+            'filename' => 'Procedura interna',
+            'media_type' => 'text/plain',
+            'storage_path' => 'documents/'.$tenant->id.'/procedura.txt',
+            'size_bytes' => 120,
+            'status' => 'queued',
+            'uploaded_at' => now(),
+            'last_status_at' => now(),
+        ]);
+
+        $result = app(DocumentProcessingService::class)->process((string) $tenant->id, (string) $document->id);
+
+        $this->assertSame('ready', $result['status']);
+        $this->assertDatabaseHas('document_segments', [
+            'document_id' => $document->id,
+            'searchable' => true,
+            'content_text' => 'AssistDoc indicizza anche il testo incollato.',
+        ]);
     }
 
     private function buildPdf(string $text): string

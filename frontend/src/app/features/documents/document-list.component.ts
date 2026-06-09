@@ -36,6 +36,7 @@ import { DocumentStatusBadgeComponent } from './document-status-badge.component'
             </div>
 
             <div class="document-row__details">
+              <span>Fonte: {{ sourceLabel(document.sourceType) }}</span>
               <span>Caricato da {{ document.uploadedBy.fullName }}</span>
               <span>{{ document.uploadedAt | date:'short' }}</span>
               <span>Tag: {{ renderTags(document.tags) }}</span>
@@ -65,6 +66,15 @@ import { DocumentStatusBadgeComponent } from './document-status-badge.component'
           </div>
 
           <div class="document-row__actions">
+            <button
+              *ngIf="canRetry() && document.status === 'failed'"
+              class="btn btn-sm btn-outline-primary"
+              type="button"
+              (click)="retry(document.id)"
+              [disabled]="api.loading() || api.deletingDocumentId() !== null"
+            >
+              Riprova
+            </button>
             <button
               *ngIf="canDelete() && pendingDeleteId() !== document.id"
               class="btn btn-sm btn-outline-danger"
@@ -167,6 +177,17 @@ import { DocumentStatusBadgeComponent } from './document-status-badge.component'
       color: #b42318;
     }
 
+    .document-row__source {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      background: #edf2ff;
+      color: #2f3a8f;
+      padding: 4px 10px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
     .document-row__confirm {
       border: 1px solid #f3c7c7;
       background: #fff7f7;
@@ -215,6 +236,10 @@ export class DocumentListComponent implements OnInit {
     return this.authService.hasAnyRole(['super-admin', 'operator']);
   }
 
+  canRetry(): boolean {
+    return this.authService.hasAnyRole(['super-admin', 'operator']);
+  }
+
   async refresh(): Promise<void> {
     const targetPage = this.api.page();
     await this.api.loadDocuments(targetPage, this.api.perPage());
@@ -258,6 +283,19 @@ export class DocumentListComponent implements OnInit {
     } catch {
       this.pendingDeleteId.set(null);
     }
+  }
+
+  async retry(documentId: string): Promise<void> {
+    try {
+      await this.api.retryDocument(documentId);
+      this.pendingDeleteId.set(null);
+    } catch {
+      this.pendingDeleteId.set(null);
+    }
+  }
+
+  sourceLabel(sourceType: DocumentListItem['sourceType']): string {
+    return sourceType === 'text' ? 'Testo diretto' : 'File caricato';
   }
 
   hasPreviousPage(): boolean {

@@ -5,15 +5,19 @@ namespace App\Services\Documents;
 use App\Models\Document;
 use App\Repositories\DocumentRepository;
 use App\Repositories\DocumentSegmentRepository;
+use App\Repositories\MessageCitationRepository;
 use App\Services\Audit\AuditService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class DocumentService
 {
     public function __construct(
         private readonly DocumentRepository $documentRepository,
         private readonly DocumentSegmentRepository $documentSegmentRepository,
+        private readonly MessageCitationRepository $messageCitationRepository,
         private readonly AuditService $auditService,
         private readonly DocumentIndexerService $documentIndexerService,
     ) {
@@ -37,7 +41,10 @@ class DocumentService
         $document = $this->documentRepository->create([
             'tenant_id' => $tenantId,
             'uploaded_by_user_id' => $userId,
-            'filename' => $file->getClientOriginalName(),
+            'source_type' => 'file',
+            'filename' => trim((string) ($payload['sourceLabel'] ?? '')) !== ''
+                ? trim((string) $payload['sourceLabel'])
+                : $file->getClientOriginalName(),
             'media_type' => $file->getMimeType() ?: 'application/octet-stream',
             'storage_path' => $storagePath,
             'tags' => $tags,
@@ -50,6 +57,51 @@ class DocumentService
         ]);
 
         $this->auditService->record('document.uploaded', $tenantId, $userId, [
+            'document_id' => (string) $document->id,
+            'filename' => $document->filename,
+            'storage_path' => $document->storage_path,
+            'tags' => $tags,
+        ]);
+
+        app(DocumentProcessingService::class)->processWithDefaultProfiles(
+            $tenantId,
+            (string) $document->id,
+            $userId,
+        );
+
+        return $this->show($tenantId, (string) $document->id) ?? [];
+    }
+
+    public function createText(string $tenantId, string $userId, array $payload): array
+    {
+        $tags = $this->normalizeTags($payload['tags'] ?? []);
+        $sourceLabel = trim((string) ($payload['sourceLabel'] ?? ''));
+        $text = trim((string) ($payload['text'] ?? ''));
+        $storagePath = sprintf(
+            'documents/%s/%s.txt',
+            $tenantId,
+            Str::uuid()->toString(),
+        );
+
+        Storage::put($storagePath, $text);
+
+        $document = $this->documentRepository->create([
+            'tenant_id' => $tenantId,
+            'uploaded_by_user_id' => $userId,
+            'source_type' => 'text',
+            'filename' => $sourceLabel,
+            'media_type' => 'text/plain',
+            'storage_path' => $storagePath,
+            'tags' => $tags,
+            'size_bytes' => strlen($text),
+            'status' => 'queued',
+            'uploaded_at' => now(),
+            'last_status_at' => now(),
+            'indexed_at' => null,
+            'failure_reason' => null,
+        ]);
+
+        $this->auditService->record('document.text_created', $tenantId, $userId, [
             'document_id' => (string) $document->id,
             'filename' => $document->filename,
             'storage_path' => $document->storage_path,
@@ -91,6 +143,7 @@ class DocumentService
 
         $document = DB::transaction(function () use ($document, $tenantId, $userId): Document {
             $document = $this->documentRepository->softDelete($document, $userId);
+            $this->messageCitationRepository->deleteForDocument($document);
             $this->documentSegmentRepository->hardDeleteForDocument($document);
             $this->auditService->record(
                 'document.deleted',

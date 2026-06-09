@@ -21,7 +21,9 @@ import { DocumentApiService } from './document-api.service';
           Documento
           <select formControlName="documentId">
             <option value="">Seleziona un documento</option>
-            <option *ngFor="let document of api.documents()" [value]="document.id">{{ document.filename }}</option>
+            <option *ngFor="let document of api.documents()" [value]="document.id">
+              {{ document.filename }} · {{ sourceLabel(document.sourceType) }}
+            </option>
           </select>
         </label>
 
@@ -106,5 +108,9 @@ export class DocumentPreparationFormComponent implements OnInit {
     } finally {
       this.submitting.set(false);
     }
+  }
+
+  sourceLabel(sourceType: 'file' | 'text'): string {
+    return sourceType === 'text' ? 'Testo diretto' : 'File';
   }
 }

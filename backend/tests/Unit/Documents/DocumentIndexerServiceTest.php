@@ -69,7 +69,6 @@ class DocumentIndexerServiceTest extends TestCase
                     }),
                     Mockery::any(),
                     Mockery::any(),
-                    null,
                 )
                 ->andReturn(['status' => 'ok']);
         });
@@ -190,7 +189,37 @@ class DocumentIndexerServiceTest extends TestCase
                     }),
                     null,
                     $profile->embedding_dimensions,
-                    $profile->slug,
+                );
+        });
+
+        $service = app(DocumentIndexerService::class);
+        $service->deleteDocumentVectors($document);
+    }
+
+    #[Test]
+    public function it_deletes_vectors_without_profile_filter_when_the_document_has_no_active_profile(): void
+    {
+        $document = new Document();
+        $document->forceFill([
+            'id' => 32,
+            'tenant_id' => 1,
+        ]);
+
+        $this->mock(QdrantService::class, function ($mock) use ($document): void {
+            $mock->shouldReceive('deleteByFilter')
+                ->once()
+                ->with(
+                    Mockery::on(function (array $filter) use ($document): bool {
+                        $must = $filter['must'] ?? [];
+
+                        return count($must) === 2
+                            && $must[0]['key'] === 'tenant_id'
+                            && $must[0]['match']['value'] === (string) $document->tenant_id
+                            && $must[1]['key'] === 'document_id'
+                            && $must[1]['match']['value'] === (string) $document->id;
+                    }),
+                    null,
+                    null,
                 );
         });
 

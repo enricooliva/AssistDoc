@@ -40,4 +40,5 @@ return [
     'profile_preset' => $profilePreset,
     'profiles' => $profiles,
     'default_retrieval_profile' => $defaultRetrievalProfile,
+    'text_ingestion_max_input_chars' => (int) env('RAG_TEXT_INGESTION_MAX_INPUT_CHARS', 1024 * 1024),
 ];

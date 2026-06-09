@@ -34,6 +34,7 @@ class DocumentRetryTest extends TestCase
         $document = Document::query()->create([
             'tenant_id' => $tenant->id,
             'uploaded_by_user_id' => $operator->id,
+            'source_type' => 'file',
             'filename' => 'retry.txt',
             'media_type' => 'text/plain',
             'storage_path' => 'documents/'.$tenant->id.'/retry.txt',
@@ -56,6 +57,46 @@ class DocumentRetryTest extends TestCase
     }
 
     #[Test]
+    public function operator_can_retry_a_failed_direct_text_document(): void
+    {
+        $tenant = Tenant::query()->where('slug', 'assistdoc-demo')->firstOrFail();
+        $operator = User::query()->where('email', 'operator@assistdoc.local')->firstOrFail();
+
+        Storage::put('documents/'.$tenant->id.'/retry-text.txt', 'AssistDoc riprocessa anche il testo incollato.');
+
+        $document = Document::query()->create([
+            'tenant_id' => $tenant->id,
+            'uploaded_by_user_id' => $operator->id,
+            'source_type' => 'text',
+            'filename' => 'Retry testo',
+            'media_type' => 'text/plain',
+            'storage_path' => 'documents/'.$tenant->id.'/retry-text.txt',
+            'size_bytes' => 120,
+            'status' => 'failed',
+            'failure_reason' => 'Errore temporaneo',
+            'uploaded_at' => now(),
+            'last_status_at' => now(),
+        ]);
+
+        $token = (string) $this->postJson('/api/v1/auth/login', [
+            'email' => 'operator@assistdoc.local',
+            'password' => 'password123',
+        ])->json('token');
+
+        $this->withToken($token)
+            ->postJson('/api/v1/documents/'.$document->id.'/retry')
+            ->assertAccepted()
+            ->assertJsonPath('status', 'queued');
+
+        $this->assertDatabaseHas('documents', [
+            'id' => $document->id,
+            'source_type' => 'text',
+            'status' => 'ready',
+            'failure_reason' => null,
+        ]);
+    }
+
+    #[Test]
     public function retry_is_rejected_when_document_is_not_failed(): void
     {
         $tenant = Tenant::query()->where('slug', 'assistdoc-demo')->firstOrFail();
@@ -64,6 +105,7 @@ class DocumentRetryTest extends TestCase
         $document = Document::query()->create([
             'tenant_id' => $tenant->id,
             'uploaded_by_user_id' => $operator->id,
+            'source_type' => 'file',
             'filename' => 'ready.txt',
             'media_type' => 'text/plain',
             'storage_path' => 'documents/'.$tenant->id.'/ready.txt',

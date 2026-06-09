@@ -16,6 +16,7 @@ class DocumentApiServiceStub {
   readonly documents = signal([{
     id: 'doc-1',
     filename: 'Manuale Aziendale.txt',
+    sourceType: 'text' as const,
     mediaType: 'text/plain',
     sizeBytes: 200,
     tags: ['manuale', 'tenant'],
@@ -39,6 +40,10 @@ class DocumentApiServiceStub {
     documentId: 'doc-1',
     status: 'deleted',
     removedFromList: true,
+  });
+  readonly retryDocument = jasmine.createSpy('retryDocument').and.resolveTo({
+    documentId: 'doc-1',
+    status: 'queued',
   });
 }
 
@@ -67,6 +72,7 @@ describe('DocumentListComponent', () => {
 
   it('renders document rows with tags and uploader metadata', () => {
     expect(fixture.nativeElement.textContent).toContain('Manuale Aziendale.txt');
+    expect(fixture.nativeElement.textContent).toContain('Fonte: Testo diretto');
     expect(fixture.nativeElement.textContent).toContain('Tag: manuale, tenant');
     expect(fixture.nativeElement.textContent).toContain('Caricato da Operator Demo');
   });
@@ -93,5 +99,30 @@ describe('DocumentListComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).not.toContain('Elimina');
+  });
+
+  it('shows failure reasons and a retry action for failed documents', async () => {
+    api.documents.set([{
+      id: 'doc-2',
+      filename: 'Errore.txt',
+      sourceType: 'file' as const,
+      mediaType: 'text/plain',
+      sizeBytes: 10,
+      tags: [],
+      status: 'failed' as const,
+      uploadedAt: new Date().toISOString(),
+      lastStatusAt: new Date().toISOString(),
+      uploadedBy: { id: '1', fullName: 'Operator Demo' },
+      deletedBy: null,
+      failureReason: 'Il documento non contiene testo estraibile.',
+      segmentsCount: 0,
+      searchableSegmentsCount: 0,
+    }]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Il documento non contiene testo estraibile.');
+    expect(fixture.nativeElement.textContent).toContain('Riprova');
   });
 });

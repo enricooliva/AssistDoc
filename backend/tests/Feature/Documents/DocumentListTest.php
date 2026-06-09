@@ -34,6 +34,7 @@ class DocumentListTest extends TestCase
             Document::query()->create([
                 'tenant_id' => $tenant->id,
                 'uploaded_by_user_id' => $index % 2 === 0 ? $viewer->id : $operator->id,
+                'source_type' => $index === 1 ? 'text' : 'file',
                 'filename' => sprintf('documento-%02d.txt', $index),
                 'media_type' => 'text/plain',
                 'storage_path' => sprintf('documents/%s/documento-%02d.txt', $tenant->id, $index),
@@ -49,6 +50,7 @@ class DocumentListTest extends TestCase
         $softDeleted = Document::query()->create([
             'tenant_id' => $tenant->id,
             'uploaded_by_user_id' => $operator->id,
+            'source_type' => 'file',
             'filename' => 'eliminato.txt',
             'media_type' => 'text/plain',
             'storage_path' => 'documents/'.$tenant->id.'/eliminato.txt',
@@ -77,6 +79,7 @@ class DocumentListTest extends TestCase
             ->assertJsonCount(25, 'items');
 
         $firstPage->assertJsonPath('items.0.filename', 'documento-01.txt');
+        $firstPage->assertJsonPath('items.0.sourceType', 'text');
         $firstPage->assertJsonPath('items.0.tags.0', 'manuale');
         $firstPage->assertJsonPath('items.0.uploadedBy.fullName', 'Operator Demo');
 
@@ -115,6 +118,7 @@ class DocumentListTest extends TestCase
         Document::query()->create([
             'tenant_id' => $tenantB->id,
             'uploaded_by_user_id' => $viewerB->id,
+            'source_type' => 'file',
             'filename' => 'tenant-b.txt',
             'media_type' => 'text/plain',
             'storage_path' => 'documents/'.$tenantB->id.'/tenant-b.txt',

@@ -13,10 +13,25 @@ class PdfTextExtractorService
             $pdf = (new Parser())->parseContent($binary);
             $text = $pdf->getText();
         } catch (\Throwable $exception) {
-            throw new RuntimeException('Impossibile estrarre il testo dal PDF.', 0, $exception);
+            $text = $this->extractLiteralStrings($binary);
+
+            if ($text === '') {
+                throw new RuntimeException('Impossibile estrarre il testo dal PDF.', 0, $exception);
+            }
         }
 
-        return $this->normalizeWhitespace($text);
+        $normalized = $this->normalizeWhitespace($text);
+
+        if ($normalized !== '') {
+            return $normalized;
+        }
+
+        $fallback = $this->normalizeWhitespace($this->extractLiteralStrings($binary));
+        if ($fallback !== '') {
+            return $fallback;
+        }
+
+        throw new RuntimeException('Impossibile estrarre il testo dal PDF.');
     }
 
     private function normalizeWhitespace(string $text): string
@@ -28,5 +43,22 @@ class PdfTextExtractorService
         $text = preg_replace("/\n{3,}/", "\n\n", $text) ?? $text;
 
         return trim($text);
+    }
+
+    private function extractLiteralStrings(string $binary): string
+    {
+        if (! preg_match_all('/\((?<text>(?:\\\\.|[^()])*)\)\s*Tj/', $binary, $matches)) {
+            return '';
+        }
+
+        $parts = array_map(static function (string $value): string {
+            return str_replace(
+                ['\\(', '\\)', '\\\\'],
+                ['(', ')', '\\'],
+                $value,
+            );
+        }, $matches['text']);
+
+        return implode("\n", $parts);
     }
 }

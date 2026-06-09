@@ -9,6 +9,14 @@ use App\Models\MessageCitation;
 
 class MessageCitationRepository
 {
+    public function deleteForDocument(Document $document): void
+    {
+        MessageCitation::query()
+            ->where('tenant_id', $document->tenant_id)
+            ->where('document_id', $document->id)
+            ->delete();
+    }
+
     public function replaceForMessage(ChatMessage $message, array $citations): array
     {
         MessageCitation::query()
@@ -19,26 +27,25 @@ class MessageCitationRepository
         foreach ($citations as $citation) {
             $documentId = (string) ($citation['documentId'] ?? '');
             $documentSegmentId = (string) ($citation['documentSegmentId'] ?? '');
+            $segment = null;
 
-            // if ($documentSegmentId === '') {
-            //     continue;
-            // }
+            if ($documentSegmentId !== '') {
+                $segment = DocumentSegment::query()
+                    ->with('document')
+                    ->whereKey($documentSegmentId)
+                    ->where('tenant_id', $message->tenant_id)
+                    ->first();
 
-            // $segment = DocumentSegment::query()
-            //     ->with('document')
-            //     ->whereKey($documentSegmentId)
-            //     ->where('tenant_id', $message->tenant_id)
-            //     ->first();
+                if (! $segment) {
+                    continue;
+                }
 
-            // if (! $segment) {
-            //     continue;
-            // }
+                $documentId = $documentId !== '' ? $documentId : (string) $segment->document_id;
 
-            // $documentId = $documentId !== '' ? $documentId : (string) $segment->document_id;
-
-            // if ($documentId === '' || (string) $segment->document_id !== $documentId) {
-            //     continue;
-            // }
+                if ($documentId === '' || (string) $segment->document_id !== $documentId) {
+                    continue;
+                }
+            }
 
             if (! Document::query()
                 ->whereKey($documentId)
@@ -51,7 +58,7 @@ class MessageCitationRepository
                 'tenant_id' => $message->tenant_id,
                 'chat_message_id' => $message->id,
                 'document_id' => $documentId,
-                'document_segment_id' => $documentSegmentId,
+                'document_segment_id' => $documentSegmentId !== '' ? $documentSegmentId : null,
                 'quote_text' => $citation['quoteText'],
                 'source_label' => $citation['sourceLabel'],
                 'created_at' => now(),

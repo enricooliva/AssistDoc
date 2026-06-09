@@ -1,6 +1,6 @@
 # AssistDoc Development Guidelines
 
-Last updated: 2026-05-25
+Last updated: 2026-06-09
 
 ## Stack
 - Backend: PHP 8.3, Laravel 12
@@ -64,6 +64,8 @@ Rules of thumb:
 - N/A for this feature; layout state is local to the UI (011-responsive-layout)
 - PHP 8.3 (Laravel 12), TypeScript 5.x (Angular SPA) + Laravel API middleware and controllers, Angular reactive forms, Bootstrap, ng-bootstrap, existing `EnterpriseUserLifecycleService`, existing chat/document services (012-admin-tenant-user-edit)
 - Existing PostgreSQL-style relational storage for users, tenants, role assignments, access methods, and audit events; no new tables expected (012-admin-tenant-user-edit)
+- PHP 8.3 (Laravel 12), TypeScript 5.x (Angular 20 SPA) + Laravel controllers/requests/services/repositories, Angular reactive forms, Bootstrap 5, `@ngx-formly/core`, `@ngx-formly/bootstrap`, existing Qdrant and Ollama integrations (013-text-content-ingestion)
+- Existing relational database for document metadata and preparation runs, plus private file storage for uploaded files and normalized pasted text (013-text-content-ingestion)
 
 ## Recent Changes
 - 011-responsive-layout: Added TypeScript 5.x, Angular 18 in the current frontend package + Bootstrap 5, Bootstrap Icons, `@ngx-formly/bootstrap`, ng-bootstrap for overlay/navigation primitives, existing Angular router and standalone components

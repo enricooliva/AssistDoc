@@ -6,7 +6,7 @@ import { DocumentApiService } from './document-api.service';
 describe('DocumentPreparationFormComponent', () => {
   it('renders the Italian preparation labels and chunking selector', async () => {
     const apiMock = {
-      documents: signal([]),
+      documents: signal([{ id: '1', filename: 'Procedura', sourceType: 'text' as const }]),
       chunkingProfiles: signal([{ id: '2', name: 'medium' }]),
       loadDocuments: jasmine.createSpy().and.resolveTo([]),
       loadChunkingProfiles: jasmine.createSpy().and.resolveTo([]),
@@ -24,5 +24,7 @@ describe('DocumentPreparationFormComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Preparazione RAG');
     expect(fixture.nativeElement.textContent).toContain('Profilo segmentazione');
     expect(fixture.nativeElement.textContent).toContain('Avvia preparazione');
+    expect(fixture.nativeElement.textContent).toContain('Procedura');
+    expect(fixture.nativeElement.textContent).toContain('Testo diretto');
   });
 });

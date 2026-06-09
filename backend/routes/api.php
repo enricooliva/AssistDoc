@@ -24,6 +24,7 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/documents', [DocumentController::class, 'index'])->middleware('role:super-admin,tenant-admin,operator,viewer');
         Route::post('/documents', [DocumentController::class, 'store'])->middleware('role:super-admin,tenant-admin,operator');
+        Route::post('/documents/text', [DocumentController::class, 'storeText'])->middleware('role:super-admin,tenant-admin,operator');
         Route::get('/documents/{documentId}', [DocumentController::class, 'show'])->middleware('role:super-admin,tenant-admin,operator,viewer');
         Route::delete('/documents/{documentId}', [DocumentController::class, 'destroy'])->middleware('role:super-admin,operator');
         Route::post('/documents/{documentId}/retry', [DocumentController::class, 'retry'])->middleware('role:super-admin,operator');

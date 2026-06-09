@@ -23,6 +23,7 @@ import { DocumentStatus } from './document.models';
     .badge--processing { background: #fff4db; color: #8d5d00; }
     .badge--ready { background: #e9f8ec; color: #18794e; }
     .badge--failed { background: #fff1f2; color: #b42318; }
+    .badge--deleted { background: #eef2f6; color: #52606d; }
   `],
 })
 export class DocumentStatusBadgeComponent {
@@ -34,5 +35,6 @@ export class DocumentStatusBadgeComponent {
     processing: 'In lavorazione',
     ready: 'Pronto',
     failed: 'Fallito',
+    deleted: 'Eliminato',
   };
 }

@@ -24,12 +24,33 @@ import { DocumentApiService } from './document-api.service';
         Solo gli utenti con ruolo tenant-admin, operatore o super-admin possono caricare documenti.
       </div>
 
+      <div *ngIf="canUpload()" class="upload-card__mode-switch" role="tablist" aria-label="Modalità di acquisizione">
+        <button
+          class="btn"
+          type="button"
+          [class.btn-primary]="mode() === 'file'"
+          [class.btn-outline-primary]="mode() !== 'file'"
+          (click)="switchMode('file')"
+        >
+          Carica file
+        </button>
+        <button
+          class="btn"
+          type="button"
+          [class.btn-primary]="mode() === 'text'"
+          [class.btn-outline-primary]="mode() !== 'text'"
+          (click)="switchMode('text')"
+        >
+          Incolla testo
+        </button>
+      </div>
+
       <form *ngIf="canUpload()" class="upload-form" [formGroup]="form" (ngSubmit)="submit()">
-        <formly-form [form]="form" [fields]="fields" [model]="model()" />
+        <formly-form [form]="form" [fields]="activeFields()" [model]="activeModel()" />
 
         <div class="upload-form__actions">
           <button class="btn btn-primary" type="submit" [disabled]="submitting()">
-            {{ submitting() ? 'Caricamento in corso...' : 'Carica documento' }}
+            {{ submitLabel() }}
           </button>
           <button class="btn btn-outline-secondary" type="button" (click)="reset()" [disabled]="submitting()">
             Reimposta
@@ -122,11 +143,22 @@ export class DocumentUploadComponent {
   readonly form = new FormGroup({});
   readonly submitting = signal(false);
   readonly status = signal<{ kind: 'success' | 'error'; message: string } | null>(null);
-  readonly model = signal<{ file: string | null; tags: string }>({ file: null, tags: '' });
+  readonly mode = signal<'file' | 'text'>('file');
   readonly canUpload = computed(() => this.authService.hasAnyRole(['super-admin', 'tenant-admin', 'operator']));
-  private selectedFile: File | null = null;
+  readonly submitLabel = computed(() => {
+    if (this.submitting()) {
+      return this.mode() === 'text' ? 'Salvataggio in corso...' : 'Caricamento in corso...';
+    }
 
-  readonly fields: FormlyFieldConfig[] = [
+    return this.mode() === 'text' ? 'Salva testo' : 'Carica documento';
+  });
+  readonly activeFields = computed(() => this.mode() === 'text' ? this.textFields : this.fileFields);
+  readonly activeModel = computed(() => this.mode() === 'text' ? this.textModel : this.fileModel);
+  private selectedFile: File | null = null;
+  readonly fileModel: { file: string | null; tags: string } = { file: null, tags: '' };
+  readonly textModel: { sourceLabel: string; text: string; tags: string } = { sourceLabel: '', text: '', tags: '' };
+
+  readonly fileFields: FormlyFieldConfig[] = [
     {
       key: 'file',
       type: 'document-file',
@@ -152,25 +184,75 @@ export class DocumentUploadComponent {
       },
     },
   ];
+  readonly textFields: FormlyFieldConfig[] = [
+    {
+      key: 'sourceLabel',
+      type: 'input',
+      props: {
+        label: 'Titolo contenuto',
+        placeholder: 'es. Procedura onboarding',
+        required: true,
+        description: 'Questo titolo sarà mostrato nell’elenco documenti e nelle citazioni.',
+      },
+    },
+    {
+      key: 'text',
+      type: 'textarea',
+      props: {
+        label: 'Testo',
+        placeholder: 'Incolla qui il contenuto da rendere ricercabile.',
+        required: true,
+        rows: 10,
+        description: 'Il testo viene archiviato in modo riservato e indicizzato con la stessa pipeline dei file.',
+      },
+    },
+    {
+      key: 'tags',
+      type: 'input',
+      props: {
+        label: 'Tag',
+        placeholder: 'es. onboarding, policy, 2026',
+        description: 'Inserisci tag separati da virgola per classificare il contenuto.',
+      },
+    },
+  ];
 
   async submit(): Promise<void> {
     this.status.set(null);
     this.form.markAllAsTouched();
-    
-    if (!this.selectedFile) {
-      this.status.set({ kind: 'error', message: 'Seleziona un documento prima di procedere.' });
-      return;
-    }
 
     this.submitting.set(true);
     try {
-      const document = await this.api.uploadDocument(this.selectedFile, this.parseTags(this.model().tags));
-      this.status.set({ kind: 'success', message: `Documento "${document.filename}" caricato correttamente.` });
+      if (this.mode() === 'file') {
+        if (!this.selectedFile) {
+          this.status.set({ kind: 'error', message: 'Seleziona un documento prima di procedere.' });
+          return;
+        }
+
+        const document = await this.api.uploadDocument(this.selectedFile, this.parseTags(this.fileModel.tags));
+        this.status.set({ kind: 'success', message: `Documento "${document.filename}" caricato correttamente.` });
+      } else {
+        const text = this.textModel.text.trim();
+        const sourceLabel = this.textModel.sourceLabel.trim();
+
+        if (sourceLabel === '' || text === '') {
+          this.status.set({ kind: 'error', message: 'Titolo e testo sono obbligatori per il contenuto incollato.' });
+          return;
+        }
+
+        const document = await this.api.createTextDocument({
+          sourceLabel,
+          text,
+          tags: this.parseTags(this.textModel.tags),
+        });
+        this.status.set({ kind: 'success', message: `Contenuto "${document.filename}" salvato correttamente.` });
+      }
+
       this.reset(false);
     } catch (error) {
       this.status.set({
         kind: 'error',
-        message: error instanceof Error ? error.message : 'Caricamento non riuscito.',
+        message: error instanceof Error ? error.message : 'Operazione non riuscita.',
       });
     } finally {
       this.submitting.set(false);
@@ -180,11 +262,24 @@ export class DocumentUploadComponent {
   reset(clearStatus = true): void {
     this.form.reset();
     this.selectedFile = null;
-    this.model.set({ file: null, tags: '' });
+    this.fileModel.file = null;
+    this.fileModel.tags = '';
+    this.textModel.sourceLabel = '';
+    this.textModel.text = '';
+    this.textModel.tags = '';
 
     if (clearStatus) {
       this.status.set(null);
     }
+  }
+
+  switchMode(mode: 'file' | 'text'): void {
+    if (this.mode() === mode) {
+      return;
+    }
+
+    this.mode.set(mode);
+    this.reset();
   }
 
   private parseTags(raw: string): string[] {

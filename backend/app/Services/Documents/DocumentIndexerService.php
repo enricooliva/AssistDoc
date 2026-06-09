@@ -116,10 +116,11 @@ class DocumentIndexerService
 
                         'chunk_preparation_run_id' => $segment instanceof DocumentSegment ? ($segment->chunk_preparation_run_id ? (string) $segment->chunk_preparation_run_id : null) : (($segment['chunk_preparation_run_id'] ?? null) ? (string) $segment['chunk_preparation_run_id'] : null),                        
                         
-                        'chunk_profile' => $segment instanceof DocumentSegment ? $segment->chunkingProfile->slug : '',
+                        'chunk_profile' => $segment instanceof DocumentSegment ? $segment->chunkingProfile?->slug : '',
                         'chunking_profile_id' => $chunkingProfileId !== 'default' ? $chunkingProfileId : null,
 
                         'filename' => $document->filename,
+                        'source_type' => $document->source_type ?? 'file',
                         'tags' => $document->tags ?? [],
                         'source_label' => $sourceLabel,
                         'content_text' => $content,
@@ -132,7 +133,7 @@ class DocumentIndexerService
                         'document_status' => 'ready',
                     ],
                 ],
-            ], $collection, $this->embeddingService->getEmbeddingDimensions($profile), $profile?->slug);
+            ], $collection, $this->embeddingService->getEmbeddingDimensions($profile));
 
             $indexed++;
         }

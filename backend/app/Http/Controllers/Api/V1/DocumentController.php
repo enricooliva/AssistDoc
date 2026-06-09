@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\DocumentIndexRequest;
 use App\Http\Requests\DocumentPreparationRunRequest;
 use App\Http\Requests\DocumentRetryRequest;
+use App\Http\Requests\DocumentTextCreateRequest;
 use App\Http\Requests\DocumentUploadRequest;
 use App\Repositories\ChunkPreparationRunRepository;
 use App\Services\Documents\DocumentService;
@@ -43,6 +44,16 @@ class DocumentController extends Controller
                 ...$request->validated(),
                 'file' => $request->file('file'),
             ]),
+            201
+        );
+    }
+
+    public function storeText(DocumentTextCreateRequest $request): JsonResponse
+    {
+        $user = $request->attributes->get('auth_user');
+
+        return response()->json(
+            $this->documentService->createText($user['tenant_id'], $user['id'], $request->validated()),
             201
         );
     }

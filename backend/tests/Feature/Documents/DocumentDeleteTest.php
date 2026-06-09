@@ -4,6 +4,7 @@ namespace Tests\Feature\Documents;
 
 use App\Models\Document;
 use App\Models\DocumentSegment;
+use App\Models\MessageCitation;
 use App\Models\Tenant;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
@@ -33,6 +34,7 @@ class DocumentDeleteTest extends TestCase
         $document = Document::query()->create([
             'tenant_id' => $tenant->id,
             'uploaded_by_user_id' => $operator->id,
+            'source_type' => 'file',
             'filename' => 'da-eliminare.txt',
             'media_type' => 'text/plain',
             'storage_path' => 'documents/'.$tenant->id.'/da-eliminare.txt',
@@ -84,9 +86,89 @@ class DocumentDeleteTest extends TestCase
         $this->assertSame((string) $operator->id, (string) $document->deleted_by_user_id);
         $this->assertSame('deleted', $document->status);
 
-        $this->assertDatabaseHas('document_segments', [
+        $this->assertDatabaseMissing('document_segments', [
             'document_id' => $document->id,
-            'searchable' => 0,
+        ]);
+    }
+
+    #[Test]
+    public function deleting_a_document_removes_related_message_citations(): void
+    {
+        $tenant = Tenant::query()->where('slug', 'assistdoc-demo')->firstOrFail();
+        $operator = User::query()->where('email', 'operator@assistdoc.local')->firstOrFail();
+
+        $document = Document::query()->create([
+            'tenant_id' => $tenant->id,
+            'uploaded_by_user_id' => $operator->id,
+            'source_type' => 'text',
+            'filename' => 'Nota interna',
+            'media_type' => 'text/plain',
+            'storage_path' => 'documents/'.$tenant->id.'/nota.txt',
+            'tags' => ['da-rimuovere'],
+            'size_bytes' => 120,
+            'status' => 'ready',
+            'uploaded_at' => now()->subHour(),
+            'last_status_at' => now()->subHour(),
+            'indexed_at' => now()->subHour(),
+        ]);
+
+        $segment = DocumentSegment::query()->create([
+            'tenant_id' => $tenant->id,
+            'document_id' => $document->id,
+            'chunk_preparation_run_id' => null,
+            'retrieval_model_profile_id' => null,
+            'chunking_profile_id' => null,
+            'segment_index' => 0,
+            'content_text' => 'Contenuto da ritirare.',
+            'token_count' => 5,
+            'source_label' => 'Segmento 1',
+            'searchable' => true,
+            'activated_at' => now()->subHour(),
+            'retired_at' => null,
+        ]);
+
+        $message = \App\Models\ChatMessage::query()->create([
+            'tenant_id' => $tenant->id,
+            'conversation_id' => \App\Models\ChatConversation::query()->create([
+                'tenant_id' => $tenant->id,
+                'user_id' => $operator->id,
+                'title' => 'Cleanup',
+                'status' => 'active',
+                'last_message_at' => now(),
+            ])->id,
+            'actor_type' => 'assistant',
+            'body' => 'Risposta',
+            'response_state' => 'answered',
+            'created_at' => now(),
+        ]);
+
+        MessageCitation::query()->create([
+            'tenant_id' => $tenant->id,
+            'chat_message_id' => $message->id,
+            'document_id' => $document->id,
+            'document_segment_id' => $segment->id,
+            'quote_text' => 'Contenuto da ritirare.',
+            'source_label' => 'Segmento 1',
+            'created_at' => now(),
+        ]);
+
+        $this->mock(\App\Services\Documents\DocumentIndexerService::class, function ($mock) use ($document): void {
+            $mock->shouldReceive('deleteDocumentVectors')->once()->with(\Mockery::on(
+                fn (Document $deletedDocument): bool => $deletedDocument->id === $document->id
+            ));
+        });
+
+        $token = (string) $this->postJson('/api/v1/auth/login', [
+            'email' => 'operator@assistdoc.local',
+            'password' => 'password123',
+        ])->json('token');
+
+        $this->withToken($token)
+            ->deleteJson('/api/v1/documents/'.$document->id)
+            ->assertOk();
+
+        $this->assertDatabaseMissing('message_citations', [
+            'document_id' => $document->id,
         ]);
     }
 
@@ -99,6 +181,7 @@ class DocumentDeleteTest extends TestCase
         $document = Document::query()->create([
             'tenant_id' => $tenant->id,
             'uploaded_by_user_id' => $operator->id,
+            'source_type' => 'file',
             'filename' => 'gia-eliminato.txt',
             'media_type' => 'text/plain',
             'storage_path' => 'documents/'.$tenant->id.'/gia-eliminato.txt',
@@ -134,6 +217,7 @@ class DocumentDeleteTest extends TestCase
         $document = Document::query()->create([
             'tenant_id' => $tenant->id,
             'uploaded_by_user_id' => $operator->id,
+            'source_type' => 'file',
             'filename' => 'vietato.txt',
             'media_type' => 'text/plain',
             'storage_path' => 'documents/'.$tenant->id.'/vietato.txt',
@@ -165,6 +249,7 @@ class DocumentDeleteTest extends TestCase
         $foreignDocument = Document::query()->create([
             'tenant_id' => $tenantB->id,
             'uploaded_by_user_id' => $viewerB->id,
+            'source_type' => 'file',
             'filename' => 'tenant-b.txt',
             'media_type' => 'text/plain',
             'storage_path' => 'documents/'.$tenantB->id.'/tenant-b.txt',
