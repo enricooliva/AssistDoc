@@ -13,116 +13,175 @@ import { DocumentUploadDialogComponent } from './document-upload-dialog.componen
   standalone: true,
   imports: [CommonModule, DatePipe, NgbModalModule, DocumentStatusBadgeComponent],
   template: `
-    <section class="documents-card">
-      <div class="documents-card__header">
-        <div>
+    <section class="documents-shell">
+      <header class="documents-page-header">
+        <div class="documents-page-header__copy">
+          <span class="documents-page-header__eyebrow">Archivio documentale</span>
           <h2>Documenti del tenant</h2>
           <p>Consulta i documenti del tenant con tag, uploader e paginazione, senza includere i record eliminati.</p>
         </div>
-        <div class="documents-card__header-actions">
+        <div class="documents-page-header__actions">
           <button
             *ngIf="canUpload()"
-            class="btn btn-primary"
+            class="btn btn-primary documents-page-header__primary"
             type="button"
             (click)="openAddSourceModal()"
             [disabled]="api.loading()"
           >
-            Aggiungi fonte
+            Nuovo documento
           </button>
+        </div>
+      </header>
+
+      <section class="documents-card">
+        <div class="documents-card__header">
+          <div>
+            <h3>Elenco documenti</h3>
+            <p>Controlla stato, provenienza e operazioni disponibili per ogni documento.</p>
+          </div>
+          <div class="documents-card__header-actions">
           <button class="btn btn-outline-secondary" type="button" (click)="refresh()" [disabled]="api.loading()">
             Aggiorna
           </button>
+          </div>
         </div>
-      </div>
 
-      <p *ngIf="api.loading()" class="documents-card__info">Caricamento elenco documenti in corso...</p>
-      <p *ngIf="api.error()" class="documents-card__error">{{ api.error() }}</p>
-      <p *ngIf="!api.loading() && documents().length === 0" class="documents-card__info">
-        Nessun documento disponibile per questo tenant.
-      </p>
+        <p *ngIf="api.loading()" class="documents-card__info">Caricamento elenco documenti in corso...</p>
+        <p *ngIf="api.error()" class="documents-card__error">{{ api.error() }}</p>
+        <p *ngIf="!api.loading() && documents().length === 0" class="documents-card__info">
+          Nessun documento disponibile per questo tenant.
+        </p>
 
-      <div *ngIf="documents().length > 0" class="document-list">
-        <article *ngFor="let document of documents()" class="document-row">
-          <div class="document-row__meta">
-            <div class="document-row__title">
-              <strong>{{ document.filename }}</strong>
-              <app-document-status-badge [status]="document.status" />
-            </div>
+        <div *ngIf="documents().length > 0" class="document-list">
+          <article *ngFor="let document of documents()" class="document-row">
+            <div class="document-row__meta">
+              <div class="document-row__title">
+                <strong>{{ document.filename }}</strong>
+                <app-document-status-badge [status]="document.status" />
+              </div>
 
-            <div class="document-row__details">
-              <span>Fonte: {{ sourceLabel(document.sourceType) }}</span>
-              <span>Caricato da {{ document.uploadedBy.fullName }}</span>
-              <span>{{ document.uploadedAt | date:'short' }}</span>
-              <span>Tag: {{ renderTags(document.tags) }}</span>
-              <span *ngIf="document.deletedAt">Eliminato il {{ document.deletedAt | date:'short' }}</span>
-            </div>
+              <div class="document-row__details">
+                <span>Fonte: {{ sourceLabel(document.sourceType) }}</span>
+                <span>Caricato da {{ document.uploadedBy.fullName }}</span>
+                <span>{{ document.uploadedAt | date:'short' }}</span>
+                <span>Tag: {{ renderTags(document.tags) }}</span>
+                <span *ngIf="document.deletedAt">Eliminato il {{ document.deletedAt | date:'short' }}</span>
+              </div>
 
-            <p *ngIf="document.failureReason" class="document-row__failure">
-              {{ document.failureReason }}
-            </p>
+              <p *ngIf="document.failureReason" class="document-row__failure">
+                {{ document.failureReason }}
+              </p>
 
-            <div *ngIf="pendingDeleteId() === document.id" class="document-row__confirm">
-              <p>La rimozione sarà una soft delete: il documento scomparirà dall'elenco standard ma resterà tracciabile.</p>
-              <div class="document-row__actions">
-                <button
-                  class="btn btn-sm btn-danger"
-                  type="button"
-                  (click)="confirmDelete(document.id)"
-                  [disabled]="api.deletingDocumentId() === document.id"
-                >
-                  Conferma eliminazione
-                </button>
-                <button class="btn btn-sm btn-outline-secondary" type="button" (click)="cancelDelete()">
-                  Annulla
-                </button>
+              <div *ngIf="pendingDeleteId() === document.id" class="document-row__confirm">
+                <p>La rimozione sarà una soft delete: il documento scomparirà dall'elenco standard ma resterà tracciabile.</p>
+                <div class="document-row__actions">
+                  <button
+                    class="btn btn-sm btn-danger"
+                    type="button"
+                    (click)="confirmDelete(document.id)"
+                    [disabled]="api.deletingDocumentId() === document.id"
+                  >
+                    Conferma eliminazione
+                  </button>
+                  <button class="btn btn-sm btn-outline-secondary" type="button" (click)="cancelDelete()">
+                    Annulla
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div class="document-row__actions">
-            <button
-              *ngIf="canPrepare(document)"
-              class="btn btn-sm btn-outline-secondary"
-              type="button"
-              (click)="openPreparationModal(document)"
-              [disabled]="api.loading() || api.deletingDocumentId() !== null"
-            >
-              Nuova preparazione RAG
-            </button>
-            <button
-              *ngIf="canRetry() && document.status === 'failed'"
-              class="btn btn-sm btn-outline-primary"
-              type="button"
-              (click)="retry(document.id)"
-              [disabled]="api.loading() || api.deletingDocumentId() !== null"
-            >
-              Riprova
-            </button>
-            <button
-              *ngIf="canDelete() && pendingDeleteId() !== document.id"
-              class="btn btn-sm btn-outline-danger"
-              type="button"
-              (click)="requestDelete(document)"
-              [disabled]="api.deletingDocumentId() !== null"
-            >
-              Elimina
-            </button>
-          </div>
-        </article>
-      </div>
+            <div class="document-row__actions">
+              <button
+                *ngIf="canPrepare(document)"
+                class="btn btn-sm btn-outline-secondary"
+                type="button"
+                (click)="openPreparationModal(document)"
+                [disabled]="api.loading() || api.deletingDocumentId() !== null"
+              >
+                Nuova preparazione RAG
+              </button>
+              <button
+                *ngIf="canRetry() && document.status === 'failed'"
+                class="btn btn-sm btn-outline-primary"
+                type="button"
+                (click)="retry(document.id)"
+                [disabled]="api.loading() || api.deletingDocumentId() !== null"
+              >
+                Riprova
+              </button>
+              <button
+                *ngIf="canDelete() && pendingDeleteId() !== document.id"
+                class="btn btn-sm btn-outline-danger"
+                type="button"
+                (click)="requestDelete(document)"
+                [disabled]="api.deletingDocumentId() !== null"
+              >
+                Elimina
+              </button>
+            </div>
+          </article>
+        </div>
 
-      <div class="documents-card__pagination" *ngIf="documents().length > 0">
-        <button class="btn btn-outline-secondary btn-sm" type="button" (click)="previousPage()" [disabled]="!hasPreviousPage() || api.loading()">
-          Precedente
-        </button>
-        <span>Pagina {{ api.page() }} di {{ totalPages() }}</span>
-        <button class="btn btn-outline-secondary btn-sm" type="button" (click)="nextPage()" [disabled]="!hasNextPage() || api.loading()">
-          Successiva
-        </button>
-      </div>
+        <div class="documents-card__pagination" *ngIf="documents().length > 0">
+          <button class="btn btn-outline-secondary btn-sm" type="button" (click)="previousPage()" [disabled]="!hasPreviousPage() || api.loading()">
+            Precedente
+          </button>
+          <span>Pagina {{ api.page() }} di {{ totalPages() }}</span>
+          <button class="btn btn-outline-secondary btn-sm" type="button" (click)="nextPage()" [disabled]="!hasNextPage() || api.loading()">
+            Successiva
+          </button>
+        </div>
+      </section>
     </section>
   `,
   styles: [`
+    .documents-shell {
+      display: grid;
+      gap: 16px;
+    }
+
+    .documents-page-header {
+      display: grid;
+      gap: 14px;
+      justify-items: start;
+    }
+
+    .documents-page-header__copy {
+      display: grid;
+      gap: 6px;
+    }
+
+    .documents-page-header__eyebrow {
+      color: #52606d;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .documents-page-header__copy h2 {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+
+    .documents-page-header__copy p {
+      margin: 0;
+      color: #52606d;
+      max-width: 64ch;
+    }
+
+    .documents-page-header__actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
+
+    .documents-page-header__primary {
+      min-width: 200px;
+    }
+
     .documents-card {
       background: #fff;
       border: 1px solid #d9e2ec;
@@ -150,6 +209,11 @@ import { DocumentUploadDialogComponent } from './document-upload-dialog.componen
     .documents-card__header h2 {
       margin: 0 0 4px;
       font-size: 1.35rem;
+    }
+
+    .documents-card__header h3 {
+      margin: 0 0 4px;
+      font-size: 1.1rem;
     }
 
     .documents-card__header p,

@@ -95,13 +95,13 @@ describe('DocumentListComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Successiva');
   });
 
-  it('shows a single add-source action for privileged users', () => {
-    expect(fixture.nativeElement.textContent).toContain('Aggiungi fonte');
+  it('shows the primary create-document action for privileged users', () => {
+    expect(fixture.nativeElement.textContent).toContain('Nuovo documento');
   });
 
   it('opens the add-source modal from the header action', () => {
     const addButton = Array.from(fixture.nativeElement.querySelectorAll('button'))
-      .find((button: HTMLButtonElement) => button.textContent?.includes('Aggiungi fonte')) as HTMLButtonElement;
+      .find((button: HTMLButtonElement) => button.textContent?.includes('Nuovo documento')) as HTMLButtonElement;
 
     addButton.click();
 
@@ -137,7 +137,7 @@ describe('DocumentListComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).not.toContain('Elimina');
-    expect(fixture.nativeElement.textContent).not.toContain('Aggiungi fonte');
+    expect(fixture.nativeElement.textContent).not.toContain('Nuovo documento');
   });
 
   it('shows failure reasons and a retry action for failed documents', async () => {
