@@ -103,7 +103,7 @@ describe('DocumentUploadComponent', () => {
     api.failUpload('Caricamento non riuscito.');
 
     const component = fixture.componentInstance as DocumentUploadComponent;
-    component.fields[0].props?.onSelected?.(new File(['contenuto'], 'manuale.txt'));
+    component.fileFields[0].props?.onSelected?.(new File(['contenuto'], 'manuale.txt'));
     fixture.detectChanges();
 
     await component.submit();
@@ -126,5 +126,19 @@ describe('DocumentUploadComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('Titolo e testo sono obbligatori per il contenuto incollato.');
+  });
+
+  it('emits completion when a text source is saved', async () => {
+    const component = fixture.componentInstance as DocumentUploadComponent;
+    const completedSpy = jasmine.createSpy('completed');
+
+    component.completed.subscribe(completedSpy);
+    component.switchMode('text');
+    component.textModel.sourceLabel = 'Procedura';
+    component.textModel.text = 'Contenuto indicizzabile';
+
+    await component.submit();
+
+    expect(completedSpy).toHaveBeenCalled();
   });
 });

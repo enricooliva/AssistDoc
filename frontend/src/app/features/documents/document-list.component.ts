@@ -1,14 +1,16 @@
 import { CommonModule, DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { NgbModal, NgbModalModule } from '@ng-bootstrap/ng-bootstrap';
 import { AuthService } from '../../core/auth/auth.service';
 import { DocumentApiService } from './document-api.service';
 import { DocumentListItem } from './document.models';
 import { DocumentStatusBadgeComponent } from './document-status-badge.component';
+import { DocumentUploadDialogComponent } from './document-upload-dialog.component';
 
 @Component({
   selector: 'app-document-list',
   standalone: true,
-  imports: [CommonModule, DatePipe, DocumentStatusBadgeComponent],
+  imports: [CommonModule, DatePipe, NgbModalModule, DocumentStatusBadgeComponent],
   template: `
     <section class="documents-card">
       <div class="documents-card__header">
@@ -16,9 +18,20 @@ import { DocumentStatusBadgeComponent } from './document-status-badge.component'
           <h2>Documenti del tenant</h2>
           <p>Consulta i documenti del tenant con tag, uploader e paginazione, senza includere i record eliminati.</p>
         </div>
-        <button class="btn btn-outline-secondary" type="button" (click)="refresh()" [disabled]="api.loading()">
-          Aggiorna
-        </button>
+        <div class="documents-card__header-actions">
+          <button
+            *ngIf="canUpload()"
+            class="btn btn-primary"
+            type="button"
+            (click)="openAddSourceModal()"
+            [disabled]="api.loading()"
+          >
+            Aggiungi fonte
+          </button>
+          <button class="btn btn-outline-secondary" type="button" (click)="refresh()" [disabled]="api.loading()">
+            Aggiorna
+          </button>
+        </div>
       </div>
 
       <p *ngIf="api.loading()" class="documents-card__info">Caricamento elenco documenti in corso...</p>
@@ -114,6 +127,14 @@ import { DocumentStatusBadgeComponent } from './document-status-badge.component'
       justify-content: space-between;
       align-items: flex-start;
       gap: 16px;
+    }
+
+    .documents-card__header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
     }
 
     .documents-card__header h2 {
@@ -224,6 +245,7 @@ import { DocumentStatusBadgeComponent } from './document-status-badge.component'
 })
 export class DocumentListComponent implements OnInit {
   private readonly authService = inject(AuthService);
+  private readonly modal = inject(NgbModal);
   readonly api = inject(DocumentApiService);
   readonly pendingDeleteId = signal<string | null>(null);
   readonly documents = computed(() => this.api.documents());
@@ -238,6 +260,10 @@ export class DocumentListComponent implements OnInit {
 
   canRetry(): boolean {
     return this.authService.hasAnyRole(['super-admin', 'operator']);
+  }
+
+  canUpload(): boolean {
+    return this.authService.hasAnyRole(['super-admin', 'tenant-admin', 'operator']);
   }
 
   async refresh(): Promise<void> {
@@ -259,6 +285,20 @@ export class DocumentListComponent implements OnInit {
     }
 
     await this.api.loadDocuments(this.api.page() - 1, this.api.perPage());
+  }
+
+  openAddSourceModal(): void {
+    const modalRef = this.modal.open(DocumentUploadDialogComponent, {
+      size: 'lg',
+      centered: true,
+      scrollable: true,
+    });
+
+    modalRef.result
+      .then(async () => {
+        await this.refresh();
+      })
+      .catch(() => undefined);
   }
 
   requestDelete(document: DocumentListItem): void {

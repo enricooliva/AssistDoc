@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, EventEmitter, Input, Output, computed, inject, signal } from '@angular/core';
 import { ReactiveFormsModule, FormGroup } from '@angular/forms';
 import { FormlyFieldConfig, FormlyModule } from '@ngx-formly/core';
 import { FormlyBootstrapModule } from '@ngx-formly/bootstrap';
 import { AuthService } from '../../core/auth/auth.service';
+import { DocumentListItem } from './document.models';
 import { DocumentApiService } from './document-api.service';
 
 @Component({
@@ -11,8 +12,8 @@ import { DocumentApiService } from './document-api.service';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, FormlyModule, FormlyBootstrapModule],
   template: `
-    <section class="upload-card">
-      <div class="upload-card__header">
+    <section [class.upload-card]="isCardSurface()" [class.upload-panel]="!isCardSurface()">
+      <div *ngIf="isCardSurface()" class="upload-card__header">
         <div>
           <h2>Carica documento</h2>
           <p>Carica un file riservato del tenant per avviare automaticamente l'indicizzazione semantica con i profili small, medium e large.</p>
@@ -134,11 +135,19 @@ import { DocumentApiService } from './document-api.service';
       gap: 12px;
       flex-wrap: wrap;
     }
+
+    .upload-panel {
+      display: grid;
+      gap: 16px;
+    }
   `],
 })
 export class DocumentUploadComponent {
   private readonly authService = inject(AuthService);
   readonly api = inject(DocumentApiService);
+
+  @Input() surface: 'card' | 'plain' = 'card';
+  @Output() readonly completed = new EventEmitter<DocumentListItem>();
 
   readonly form = new FormGroup({});
   readonly submitting = signal(false);
@@ -154,6 +163,7 @@ export class DocumentUploadComponent {
   });
   readonly activeFields = computed(() => this.mode() === 'text' ? this.textFields : this.fileFields);
   readonly activeModel = computed(() => this.mode() === 'text' ? this.textModel : this.fileModel);
+  readonly isCardSurface = computed(() => this.surface === 'card');
   private selectedFile: File | null = null;
   readonly fileModel: { file: string | null; tags: string } = { file: null, tags: '' };
   readonly textModel: { sourceLabel: string; text: string; tags: string } = { sourceLabel: '', text: '', tags: '' };
@@ -231,6 +241,7 @@ export class DocumentUploadComponent {
 
         const document = await this.api.uploadDocument(this.selectedFile, this.parseTags(this.fileModel.tags));
         this.status.set({ kind: 'success', message: `Documento "${document.filename}" caricato correttamente.` });
+        this.completed.emit(document);
       } else {
         const text = this.textModel.text.trim();
         const sourceLabel = this.textModel.sourceLabel.trim();
@@ -246,6 +257,7 @@ export class DocumentUploadComponent {
           tags: this.parseTags(this.textModel.tags),
         });
         this.status.set({ kind: 'success', message: `Contenuto "${document.filename}" salvato correttamente.` });
+        this.completed.emit(document);
       }
 
       this.reset(false);

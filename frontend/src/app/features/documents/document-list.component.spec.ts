@@ -1,8 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
+import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { AuthService } from '../../core/auth/auth.service';
 import { DocumentApiService } from './document-api.service';
 import { DocumentListComponent } from './document-list.component';
+import { DocumentListItem } from './document.models';
 
 class AuthServiceStub {
   role: 'super-admin' | 'operator' | 'viewer' = 'operator';
@@ -13,7 +15,7 @@ class AuthServiceStub {
 }
 
 class DocumentApiServiceStub {
-  readonly documents = signal([{
+  readonly documents = signal<DocumentListItem[]>([{
     id: 'doc-1',
     filename: 'Manuale Aziendale.txt',
     sourceType: 'text' as const,
@@ -47,20 +49,29 @@ class DocumentApiServiceStub {
   });
 }
 
+class NgbModalStub {
+  open = jasmine.createSpy('open').and.returnValue({
+    result: Promise.resolve(true),
+  });
+}
+
 describe('DocumentListComponent', () => {
   let fixture: ComponentFixture<DocumentListComponent>;
   let api: DocumentApiServiceStub;
   let authService: AuthServiceStub;
+  let modal: NgbModalStub;
 
   beforeEach(async () => {
     api = new DocumentApiServiceStub();
     authService = new AuthServiceStub();
+    modal = new NgbModalStub();
 
     await TestBed.configureTestingModule({
       imports: [DocumentListComponent],
       providers: [
         { provide: AuthService, useValue: authService },
         { provide: DocumentApiService, useValue: api },
+        { provide: NgbModal, useValue: modal },
       ],
     }).compileComponents();
 
@@ -83,6 +94,19 @@ describe('DocumentListComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Successiva');
   });
 
+  it('shows a single add-source action for privileged users', () => {
+    expect(fixture.nativeElement.textContent).toContain('Aggiungi fonte');
+  });
+
+  it('opens the add-source modal from the header action', () => {
+    const addButton = Array.from(fixture.nativeElement.querySelectorAll('button'))
+      .find((button: HTMLButtonElement) => button.textContent?.includes('Aggiungi fonte')) as HTMLButtonElement;
+
+    addButton.click();
+
+    expect(modal.open).toHaveBeenCalled();
+  });
+
   it('reveals a soft delete confirmation before deleting a document', async () => {
     fixture.nativeElement.querySelector('button.btn-outline-danger')?.click();
     fixture.detectChanges();
@@ -99,6 +123,7 @@ describe('DocumentListComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).not.toContain('Elimina');
+    expect(fixture.nativeElement.textContent).not.toContain('Aggiungi fonte');
   });
 
   it('shows failure reasons and a retry action for failed documents', async () => {
