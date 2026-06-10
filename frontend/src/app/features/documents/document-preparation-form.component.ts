@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, Output, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { PreparationRunResponse } from './document.models';
 import { DocumentApiService } from './document-api.service';
 
 @Component({
@@ -8,8 +9,8 @@ import { DocumentApiService } from './document-api.service';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   template: `
-    <section class="prep-card">
-      <div class="prep-card__header">
+    <section [class.prep-card]="isCardSurface()" [class.prep-panel]="!isCardSurface()">
+      <div *ngIf="isCardSurface()" class="prep-card__header">
         <div>
           <h2>Preparazione RAG</h2>
           <p>Seleziona il documento e il profilo di segmentazione per avviare una nuova preparazione. Il profilo retrieval configurato viene applicato automaticamente.</p>
@@ -17,7 +18,7 @@ import { DocumentApiService } from './document-api.service';
       </div>
 
       <form class="prep-form" [formGroup]="form" (ngSubmit)="submit()">
-        <label>
+        <label *ngIf="!hasPresetDocumentId()">
           Documento
           <select formControlName="documentId">
             <option value="">Seleziona un documento</option>
@@ -26,6 +27,10 @@ import { DocumentApiService } from './document-api.service';
             </option>
           </select>
         </label>
+
+        <div *ngIf="selectedDocumentName()" class="prep-card__document">
+          Documento selezionato: <strong>{{ selectedDocumentName() }}</strong>
+        </div>
 
         <label>
           Profilo segmentazione
@@ -74,10 +79,25 @@ import { DocumentApiService } from './document-api.service';
       margin: 0;
       color: #1e7e34;
     }
+
+    .prep-card__document {
+      color: #52606d;
+      font-size: 0.95rem;
+    }
+
+    .prep-panel {
+      display: grid;
+      gap: 12px;
+    }
   `],
 })
 export class DocumentPreparationFormComponent implements OnInit {
   readonly api = inject(DocumentApiService);
+
+  @Input() surface: 'card' | 'plain' = 'card';
+  @Input() presetDocumentId: string | null = null;
+  @Output() readonly completed = new EventEmitter<PreparationRunResponse>();
+
   readonly submitting = signal(false);
   readonly feedback = signal('');
   readonly form = new FormGroup({
@@ -85,9 +105,19 @@ export class DocumentPreparationFormComponent implements OnInit {
     chunkingProfileId: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
   });
   readonly hasProfiles = computed(() => this.api.chunkingProfiles().length > 0);
+  readonly isCardSurface = computed(() => this.surface === 'card');
+  readonly hasPresetDocumentId = computed(() => this.presetDocumentId !== null && this.presetDocumentId !== '');
+  readonly selectedDocumentName = computed(() => {
+    const documentId = this.form.controls.documentId.value;
+    return this.api.documents().find((document) => document.id === documentId)?.filename ?? '';
+  });
 
   async ngOnInit(): Promise<void> {
     await Promise.all([this.api.loadDocuments(), this.api.loadChunkingProfiles()]);
+
+    if (this.hasPresetDocumentId()) {
+      this.form.controls.documentId.setValue(this.presetDocumentId ?? '');
+    }
   }
 
   async submit(): Promise<void> {
@@ -105,6 +135,7 @@ export class DocumentPreparationFormComponent implements OnInit {
         value.chunkingProfileId,
       );
       this.feedback.set(`Preparazione avviata con stato finale: ${run.status}.`);
+      this.completed.emit(run);
     } finally {
       this.submitting.set(false);
     }

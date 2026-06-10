@@ -50,9 +50,10 @@ class DocumentApiServiceStub {
 }
 
 class NgbModalStub {
-  open = jasmine.createSpy('open').and.returnValue({
+  open = jasmine.createSpy('open').and.callFake(() => ({
+    componentInstance: {},
     result: Promise.resolve(true),
-  });
+  }));
 }
 
 describe('DocumentListComponent', () => {
@@ -105,6 +106,19 @@ describe('DocumentListComponent', () => {
     addButton.click();
 
     expect(modal.open).toHaveBeenCalled();
+  });
+
+  it('shows and opens the new rag preparation action from a document row', () => {
+    const preparationButton = Array.from(fixture.nativeElement.querySelectorAll('button'))
+      .find((button: HTMLButtonElement) => button.textContent?.includes('Nuova preparazione RAG')) as HTMLButtonElement;
+
+    expect(preparationButton).toBeTruthy();
+
+    preparationButton.click();
+
+    expect(modal.open).toHaveBeenCalled();
+    const lastCall = modal.open.calls.mostRecent().returnValue as { componentInstance: { documentId?: string } };
+    expect(lastCall.componentInstance.documentId).toBe('doc-1');
   });
 
   it('reveals a soft delete confirmation before deleting a document', async () => {

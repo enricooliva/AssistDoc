@@ -4,6 +4,7 @@ import { NgbModal, NgbModalModule } from '@ng-bootstrap/ng-bootstrap';
 import { AuthService } from '../../core/auth/auth.service';
 import { DocumentApiService } from './document-api.service';
 import { DocumentListItem } from './document.models';
+import { DocumentPreparationDialogComponent } from './document-preparation-dialog.component';
 import { DocumentStatusBadgeComponent } from './document-status-badge.component';
 import { DocumentUploadDialogComponent } from './document-upload-dialog.component';
 
@@ -79,6 +80,15 @@ import { DocumentUploadDialogComponent } from './document-upload-dialog.componen
           </div>
 
           <div class="document-row__actions">
+            <button
+              *ngIf="canPrepare(document)"
+              class="btn btn-sm btn-outline-secondary"
+              type="button"
+              (click)="openPreparationModal(document)"
+              [disabled]="api.loading() || api.deletingDocumentId() !== null"
+            >
+              Nuova preparazione RAG
+            </button>
             <button
               *ngIf="canRetry() && document.status === 'failed'"
               class="btn btn-sm btn-outline-primary"
@@ -266,6 +276,10 @@ export class DocumentListComponent implements OnInit {
     return this.authService.hasAnyRole(['super-admin', 'tenant-admin', 'operator']);
   }
 
+  canPrepare(_document: DocumentListItem): boolean {
+    return this.authService.hasAnyRole(['super-admin', 'tenant-admin', 'operator']);
+  }
+
   async refresh(): Promise<void> {
     const targetPage = this.api.page();
     await this.api.loadDocuments(targetPage, this.api.perPage());
@@ -293,6 +307,21 @@ export class DocumentListComponent implements OnInit {
       centered: true,
       scrollable: true,
     });
+
+    modalRef.result
+      .then(async () => {
+        await this.refresh();
+      })
+      .catch(() => undefined);
+  }
+
+  openPreparationModal(document: DocumentListItem): void {
+    const modalRef = this.modal.open(DocumentPreparationDialogComponent, {
+      size: 'lg',
+      centered: true,
+      scrollable: true,
+    });
+    modalRef.componentInstance.documentId = document.id;
 
     modalRef.result
       .then(async () => {
