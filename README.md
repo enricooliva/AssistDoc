@@ -1,23 +1,85 @@
 # AssistDoc
 
-AssistDoc is a multi-tenant private document assistant for companies.
+## Enterprise Knowledge Assistant based on Generative AI and RAG
 
-This repository contains:
+AssistDoc è un progetto sperimentale di assistente intelligente per l'interrogazione di documentazione aziendale attraverso tecniche di **Retrieval-Augmented Generation (RAG)**.
 
-- `backend/`: Laravel-style API application
-- `frontend/`: Angular SPA
-- `infra/`: container and deployment scaffolding
-- `specs/`: feature specs, plans, tasks, and supporting design artifacts
+L'obiettivo è esplorare come **Large Language Models (LLM)**, **ricerca semantica** e sistemi di recupero della conoscenza possano migliorare l'accesso alle informazioni contenute in documenti strutturati e non strutturati.
 
-Current implementation status:
+Il progetto studia un approccio in cui gli utenti possono interagire con la conoscenza organizzativa attraverso il linguaggio naturale, combinando tecniche di ricerca documentale con capacità generative basate su modelli linguistici.
 
-- monorepo scaffolding created
-- auth, tenant context, audit, and chat MVP skeleton in progress
-- document ingestion and audit UI follow-up work remains in task phases after the MVP slice
+## Scenario applicativo
 
-Authentication slice status:
+Nelle organizzazioni complesse una parte significativa della conoscenza è distribuita in numerose fonti documentali:
 
-- `POST /api/v1/auth/login` authenticates local development users and returns a tenant-scoped bearer token
-- `GET /api/v1/auth/me` restores the authenticated user context for the SPA
-- `POST /api/v1/auth/logout` invalidates the current bearer token
-- tenant context is derived server-side from the authenticated user, not from client input
+- regolamenti e normative;
+- procedure operative;
+- documentazione tecnica;
+- manuali;
+- documenti amministrativi;
+- basi di conoscenza interne.
+
+La difficoltà principale non è solo conservare queste informazioni, ma renderle facilmente accessibili e interrogabili.
+
+AssistDoc esplora un modello in cui l'utente può porre domande in linguaggio naturale e ottenere risposte contestualizzate sulla base delle informazioni contenute nella documentazione disponibile.
+
+## Obiettivi del progetto
+
+AssistDoc nasce per sperimentare:
+
+- l'integrazione di Large Language Models nei sistemi informativi enterprise;
+- l'utilizzo di architetture Retrieval-Augmented Generation (RAG);
+- nuove modalità di accesso alla conoscenza organizzativa;
+- tecniche di ricerca semantica applicate a documenti aziendali;
+- architetture software sicure e scalabili per applicazioni basate su AI.
+
+## Architettura
+
+AssistDoc segue un'architettura applicativa enterprise full-stack. 
+
+Il sistema comprende:
+
+* acquisizione e preparazione documenti;
+* indicizzazione semantica;
+* recupero dei contenuti rilevanti;
+* generazione della risposta tramite LLM;
+* interazione conversazionale con la conoscenza aziendale.
+
+## Tecnologie esplorate
+
+* Large Language Models (LLM)
+* Retrieval-Augmented Generation (RAG)
+* Semantic Search
+* Vector Embeddings
+* Prompt Engineering
+
+## Possibili applicazioni
+
+* assistenti per documentazione interna;
+* supporto alla consultazione di procedure;
+* knowledge management aziendale;
+* sistemi informativi enterprise.
+
+# Struttura del repository
+
+- `backend/`: Applicazione API Laravel
+- `frontend/`: Single Page Application Angular
+- `infra/`: Configurazione infrastruttura e deployment
+- `specs/`: Specifiche funzionali, piani e documentazione progettuale
+
+## Stato del progetto
+
+- struttura monorepository;
+- separazione backend/frontend;
+- base applicativa Laravel;
+- autenticazione applicativa;
+- gestione del contesto tenant;
+- fondazione API;
+- struttura iniziale per interazione conversazionale.
+
+## API di autenticazione
+
+- `POST /api/v1/auth/login` Autentica un utente locale e restituisce un token con contesto tenant associato
+- `GET /api/v1/auth/me` Ripristina il contesto autenticato utilizzato dall'applicazione frontend
+- `POST /api/v1/auth/logout` Invalida il token corrente
+
