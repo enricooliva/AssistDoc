@@ -17,12 +17,32 @@ This backend exposes the tenant-aware REST API used by the Angular frontend.
 - `GET /api/v1/auth/me`
 - `POST /api/v1/auth/logout`
 
+### Tenant administration endpoints
+
+- `GET /api/v1/tenants`
+- `POST /api/v1/tenants`
+- `GET /api/v1/tenants/{tenantId}`
+- `PATCH /api/v1/tenants/{tenantId}`
+- `POST /api/v1/tenants/{tenantId}/users`
+
 ### Local development users
 
 - `admin@assistdoc.local` / `password123`
+- `tenant-admin@assistdoc.local` / `password123`
 - `operator@assistdoc.local` / `password123`
 - `viewer@assistdoc.local` / `password123`
+
+- `admin@assistdoc.local` crea i tenant; `tenant-admin@assistdoc.local` gestisce gli utenti del proprio tenant.
 - `viewer-b@assistdoc.local` / `password123`
+
+### RAG profile preset
+
+The active retrieval profile is selected by `RAG_PROFILE_PRESET` in the backend `.env`.
+
+- `RAG_PROFILE_PRESET=default` uses `qwen` with `qwen3` and `qwen3-embedding`
+- `RAG_PROFILE_PRESET=low_spec` uses `qwen-pc-lenti` with `qwen3:1.7b` and `qwen3-embedding:0.6b`
+
+The seeder keeps both profile records in sync with the configuration in [backend/config/rag.php](/home/enricooliva/Workspace/AssistDoc/backend/config/rag.php).
 
 ### Tenant isolation
 

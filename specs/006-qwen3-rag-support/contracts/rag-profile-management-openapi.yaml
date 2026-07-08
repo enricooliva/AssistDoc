@@ -1,0 +1,349 @@
+openapi: 3.1.0
+info:
+  title: AssistDoc Configured Qwen RAG API
+  version: 1.0.0
+  description: Versioned REST contract for retrieval model profiles, chunking profiles, profile-aware preparation runs, and grounded retrieval compatibility.
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+tags:
+  - name: RagProfiles
+  - name: ChunkingProfiles
+  - name: DocumentPreparation
+  - name: Chat
+paths:
+  /rag/chunking-profiles:
+    get:
+      tags: [ChunkingProfiles]
+      summary: List chunking profiles
+      x-roles: [super-admin, operator]
+      responses:
+        '200':
+          description: Available chunking profiles
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChunkingProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /documents/{documentId}/preparation-runs:
+    post:
+      tags: [DocumentPreparation]
+      summary: Start a profile-aware preparation or reprocessing run
+      x-roles: [super-admin, operator]
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chunkingProfileId]
+              properties:
+                chunkingProfileId:
+                  type: string
+      responses:
+        '202':
+          description: Preparation run accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreparationRun'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /documents/{documentId}/preparation-runs/{runId}:
+    get:
+      tags: [DocumentPreparation]
+      summary: Read preparation run details
+      x-roles: [super-admin, operator, viewer]
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Preparation run status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreparationRunDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /chat/conversations/{conversationId}/messages:
+    post:
+      tags: [Chat]
+      summary: Submit a grounded chat question using compatible retrieval data
+      x-roles: [super-admin, operator, viewer]
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question:
+                  type: string
+                  minLength: 1
+                  maxLength: 4000
+      responses:
+        '200':
+          description: Grounded answer generated from compatible retrieval data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatExchange'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: No compatible retrieval profile or active retrieval data is available for the request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    DocumentId:
+      name: documentId
+      in: path
+      required: true
+      schema:
+        type: string
+    RunId:
+      name: runId
+      in: path
+      required: true
+      schema:
+        type: string
+    ConversationId:
+      name: conversationId
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    Unauthorized:
+      description: Authentication required or invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Authenticated but not allowed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found in tenant scope
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Resource exists but cannot accept the requested state transition or compatibility requirement
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationError:
+      description: Invalid request payload
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      fieldErrors:
+                        type: object
+                        additionalProperties:
+                          type: array
+                          items:
+                            type: string
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+    RetrievalModelProfile:
+      type: object
+      required:
+        - id
+        - name
+        - tokenizerKey
+        - tokenWindow
+        - embeddingDimensions
+        - availableForNewRuns
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        generationModel:
+          type: string
+        embeddingModel:
+          type: string
+        tokenizerKey:
+          type: string
+        tokenWindow:
+          type: integer
+        embeddingDimensions:
+          type: integer
+        availableForNewRuns:
+          type: boolean
+    ChunkingProfile:
+      type: object
+      required:
+        - id
+        - name
+        - chunkSizeTokens
+        - overlapTokens
+        - active
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        chunkSizeTokens:
+          type: integer
+        overlapTokens:
+          type: integer
+        active:
+          type: boolean
+        notes:
+          type: string
+          nullable: true
+    PreparationRun:
+      type: object
+      required:
+        - id
+        - documentId
+        - retrievalModelProfileId
+        - chunkingProfileId
+        - status
+      properties:
+        id:
+          type: string
+        documentId:
+          type: string
+        retrievalModelProfileId:
+          type: string
+        chunkingProfileId:
+          type: string
+        status:
+          type: string
+          enum: [queued, processing, ready, failed]
+        createdAt:
+          type: string
+          format: date-time
+    PreparationRunDetail:
+      allOf:
+        - $ref: '#/components/schemas/PreparationRun'
+        - type: object
+          properties:
+            failure:
+              type: object
+              nullable: true
+              properties:
+                code:
+                  type: string
+                message:
+                  type: string
+                measuredTokenCount:
+                  type: integer
+                  nullable: true
+                allowedTokenCount:
+                  type: integer
+                  nullable: true
+            activatedProfileCompatibility:
+              type: object
+              nullable: true
+              properties:
+                retrievalModelProfileId:
+                  type: string
+                chunkingProfileId:
+                  type: string
+    ChatExchange:
+      type: object
+      required: [conversationId, userMessage, assistantMessage]
+      properties:
+        conversationId:
+          type: string
+        userMessage:
+          $ref: '#/components/schemas/ChatMessage'
+        assistantMessage:
+          allOf:
+            - $ref: '#/components/schemas/ChatMessage'
+            - type: object
+              properties:
+                retrievalModelProfileId:
+                  type: string
+                promptContract:
+                  type: string
+                  enum: [askLlamaWithContext]
+    ChatMessage:
+      type: object
+      required: [id, actorType, body, createdAt]
+      properties:
+        id:
+          type: string
+        actorType:
+          type: string
+          enum: [user, assistant]
+        body:
+          type: string
+        responseState:
+          type: string
+          nullable: true
+          enum: [answered, insufficient_information, failed]
+        createdAt:
+          type: string
+          format: date-time

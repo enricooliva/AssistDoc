@@ -2,7 +2,8 @@ import { signal, WritableSignal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router, UrlTree } from '@angular/router';
 import { authGuard } from './auth.guard';
-import { AuthService, SessionState } from './auth.service';
+import { AuthService } from './auth.service';
+import { SessionState } from './auth.models';
 
 class AuthServiceStub {
   session: WritableSignal<SessionState | null> = signal(null);

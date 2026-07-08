@@ -37,4 +37,9 @@ class AuditEvent extends Model
     {
         return $this->belongsTo(User::class, 'actor_user_id');
     }
+
+    public function targetUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'target_id')->withTrashed();
+    }
 }

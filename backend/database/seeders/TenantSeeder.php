@@ -18,5 +18,15 @@ class TenantSeeder extends Seeder
             ['slug' => 'tenant-b'],
             ['name' => 'Tenant B', 'status' => 'active']
         );
+
+        Tenant::query()->updateOrCreate(
+            ['slug' => 'tenant-c'],
+            ['name' => 'Tenant C', 'status' => 'active']
+        );
+
+        Tenant::query()->updateOrCreate(
+            ['slug' => 'ssia-storia'],
+            ['name' => 'SSIA - Storia', 'status' => 'active']
+        );
     }
 }

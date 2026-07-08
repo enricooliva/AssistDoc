@@ -1,0 +1,253 @@
+openapi: 3.1.0
+info:
+  title: AssistDoc Admin, Tenant-Admin Access, and User Editing API
+  version: 1.0.0
+  description: >
+    Contract for the enterprise-user edit workflow and the role-scope changes
+    required for admin and tenant-admin access to the existing chat and
+    documents features.
+servers:
+  - url: http://localhost:8000
+tags:
+  - name: Enterprise Users
+paths:
+  /api/v1/users/{userId}:
+    get:
+      tags: [Enterprise Users]
+      summary: Load an enterprise user for editing
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnterpriseUserEnvelope'
+        '403':
+          description: Caller is not authorized to read the target user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Target user not found in the caller governance scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      tags: [Enterprise Users]
+      summary: Update an enterprise user across administratively editable fields
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnterpriseUserUpdateRequest'
+      responses:
+        '200':
+          description: User updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnterpriseUserEnvelope'
+        '403':
+          description: Caller is not authorized to update the target user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Target user not found in the caller governance scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Update rejected because of a lifecycle or governance conflict.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    EnterpriseUserSummary:
+      type: object
+      required:
+        - id
+        - full_name
+        - email
+        - tenant
+        - role
+        - status
+        - access_methods
+        - mfa_policy
+      properties:
+        id:
+          type: string
+        full_name:
+          type: string
+        email:
+          type: string
+          format: email
+        tenant:
+          $ref: '#/components/schemas/TenantSummary'
+        role:
+          type: string
+          enum: [super-admin, tenant-admin, operator, viewer]
+        status:
+          type: string
+          enum: [provisioned, active, suspended, locked, deactivated, reset_pending]
+        access_methods:
+          type: array
+          items:
+            type: string
+            enum: [company_account, password]
+        mfa_policy:
+          type: string
+          enum: [required, optional, inherited]
+        deleted_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        deleted_by:
+          oneOf:
+            - $ref: '#/components/schemas/DeletedBySummary'
+            - type: 'null'
+        lockout:
+          oneOf:
+            - $ref: '#/components/schemas/LockoutSummary'
+            - type: 'null'
+    EnterpriseUserUpdateRequest:
+      type: object
+      required:
+        - full_name
+        - email
+        - role
+        - status
+        - access_methods
+        - mfa_policy
+      additionalProperties: false
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+        tenant_id:
+          type: string
+          description: Editable only for super-admin callers.
+        role:
+          type: string
+          enum: [super-admin, tenant-admin, operator, viewer]
+        status:
+          type: string
+          enum: [provisioned, active, suspended, locked, deactivated, reset_pending]
+        access_methods:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            enum: [company_account, password]
+        mfa_policy:
+          type: string
+          enum: [required, optional, inherited]
+        password:
+          type: string
+          minLength: 12
+          nullable: true
+    EnterpriseUserEnvelope:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: '#/components/schemas/EnterpriseUserSummary'
+    TenantSummary:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+    DeletedBySummary:
+      type: object
+      required: [id, full_name]
+      properties:
+        id:
+          type: string
+        full_name:
+          type: string
+    LockoutSummary:
+      type: object
+      required: [status, reason, locked_until]
+      properties:
+        status:
+          type: string
+        reason:
+          type: string
+        locked_until:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+    ValidationErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, fieldErrors]
+          properties:
+            code:
+              type: string
+              enum: [VALIDATION_FAILED]
+            message:
+              type: string
+            fieldErrors:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string

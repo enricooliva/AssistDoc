@@ -19,6 +19,5 @@ import { Component, Input } from '@angular/core';
   `],
 })
 export class SearchResultsComponent {
-  @Input() results: Array<{ documentName: string; snippet: string; sourceLabel: string }> = [];
+  @Input() results: Array<{ documentName: string; snippet: string; sourceLabel: string; embeddingModel?: string | null }> = [];
 }
-

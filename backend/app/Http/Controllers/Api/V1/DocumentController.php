@@ -3,23 +3,35 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\DocumentIndexRequest;
+use App\Http\Requests\DocumentPreparationRunRequest;
 use App\Http\Requests\DocumentRetryRequest;
 use App\Http\Requests\DocumentUploadRequest;
+use App\Repositories\ChunkPreparationRunRepository;
 use App\Services\Documents\DocumentService;
+use App\Services\Rag\ChunkingProfileService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class DocumentController extends Controller
 {
-    public function __construct(private readonly DocumentService $documentService)
-    {
-    }
+    public function __construct(
+        private readonly DocumentService $documentService,
+        private readonly ChunkingProfileService $chunkingProfileService,
+        private readonly ChunkPreparationRunRepository $chunkPreparationRunRepository,
+    ) {}
 
-    public function index(Request $request): JsonResponse
+    public function index(DocumentIndexRequest $request): JsonResponse
     {
         $user = $request->attributes->get('auth_user');
 
-        return response()->json($this->documentService->list($user['tenant_id']));
+        return response()->json(
+            $this->documentService->list(
+                $user['tenant_id'],
+                (int) $request->validated('page', 1),
+                (int) $request->validated('perPage', 25),
+            )
+        );
     }
 
     public function store(DocumentUploadRequest $request): JsonResponse
@@ -27,7 +39,10 @@ class DocumentController extends Controller
         $user = $request->attributes->get('auth_user');
 
         return response()->json(
-            $this->documentService->create($user['tenant_id'], $user['id'], $request->validated()),
+            $this->documentService->create($user['tenant_id'], $user['id'], [
+                ...$request->validated(),
+                'file' => $request->file('file'),
+            ]),
             201
         );
     }
@@ -47,14 +62,102 @@ class DocumentController extends Controller
         return response()->json($document);
     }
 
+    public function destroy(Request $request, string $documentId): JsonResponse
+    {
+        $user = $request->attributes->get('auth_user');
+        $result = $this->documentService->delete($user['tenant_id'], $user['id'], $documentId);
+
+        if (($result['status'] ?? null) === 'not_found') {
+            return response()->json([
+                'error' => [
+                    'code' => 'NOT_FOUND',
+                    'message' => 'Documento non trovato.',
+                ],
+            ], 404);
+        }
+
+        if (($result['status'] ?? null) === 'already_deleted') {
+            return response()->json([
+                'error' => [
+                    'code' => 'ALREADY_DELETED',
+                    'message' => 'Il documento è già stato eliminato.',
+                ],
+            ], 409);
+        }
+
+        return response()->json($result);
+    }
+
     public function retry(DocumentRetryRequest $request, string $documentId): JsonResponse
     {
         $user = $request->attributes->get('auth_user');
 
-        return response()->json(
-            $this->documentService->retry($user['tenant_id'], $user['id'], $documentId),
-            202
+        $result = $this->documentService->retry($user['tenant_id'], $user['id'], $documentId);
+
+        if (($result['status'] ?? null) === 'not_found') {
+            return response()->json([
+                'error' => [
+                    'code' => 'NOT_FOUND',
+                    'message' => 'Documento non trovato.',
+                ],
+            ], 404);
+        }
+
+        if (($result['status'] ?? null) !== 'queued') {
+            return response()->json([
+                'error' => [
+                    'code' => 'INVALID_DOCUMENT_STATE',
+                    'message' => 'Il documento non può essere rimesso in coda nello stato corrente.',
+                ],
+            ], 409);
+        }
+
+        return response()->json($result, 202);
+    }
+
+    public function listChunkingProfiles(): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->chunkingProfileService->list(),
+        ]);
+    }
+
+    public function startPreparationRun(DocumentPreparationRunRequest $request, string $documentId): JsonResponse
+    {
+        $user = $request->attributes->get('auth_user');
+        $result = $this->documentService->startPreparationRun(
+            $user['tenant_id'],
+            $user['id'],
+            $documentId,
+            $request->validated('chunkingProfileId'),
         );
+
+        if (($result['status'] ?? null) === 'not_found') {
+            return response()->json([
+                'error' => [
+                    'code' => 'NOT_FOUND',
+                    'message' => 'Documento non trovato.',
+                ],
+            ], 404);
+        }
+
+        return response()->json($result, 202);
+    }
+
+    public function showPreparationRun(Request $request, string $documentId, string $runId): JsonResponse
+    {
+        $user = $request->attributes->get('auth_user');
+        $run = $this->chunkPreparationRunRepository->findForDocument($user['tenant_id'], $documentId, $runId);
+
+        if (! $run) {
+            return response()->json([
+                'error' => [
+                    'code' => 'NOT_FOUND',
+                    'message' => 'Run di preparazione non trovato.',
+                ],
+            ], 404);
+        }
+
+        return response()->json(\App\DataTransferObjects\Rag\ChunkPreparationRunData::fromModel($run));
     }
 }
-

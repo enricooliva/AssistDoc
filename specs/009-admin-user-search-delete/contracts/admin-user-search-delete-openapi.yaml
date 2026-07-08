@@ -1,0 +1,232 @@
+openapi: 3.1.0
+info:
+  title: AssistDoc Administrative User Search and Soft Delete API
+  version: 1.0.0
+  description: >
+    Versioned contract update for tenant-scoped enterprise-user search and
+    soft-delete management in the existing administrative user area.
+servers:
+  - url: http://localhost:8000
+tags:
+  - name: Enterprise Users
+paths:
+  /api/v1/users:
+    get:
+      tags: [Enterprise Users]
+      summary: List enterprise users with optional search
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+          required: false
+        - in: query
+          name: perPage
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+          required: false
+        - in: query
+          name: query
+          schema:
+            type: string
+            maxLength: 120
+          required: false
+          description: Free-text search applied to full name and email.
+      responses:
+        '200':
+          description: Tenant-scoped user list returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnterpriseUserListResponse'
+        '403':
+          description: Caller is not authorized to manage users.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /api/v1/users/{userId}:
+    delete:
+      tags: [Enterprise Users]
+      summary: Soft delete an enterprise user
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User soft deleted successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteEnterpriseUserResponse'
+        '403':
+          description: Caller is not authorized to delete the target user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Target user not found in the caller governance scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Target user was already soft deleted or deletion is blocked by lifecycle rules.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    EnterpriseUserSummary:
+      type: object
+      required:
+        - id
+        - full_name
+        - email
+        - tenant
+        - role
+        - status
+        - access_methods
+        - mfa_policy
+      properties:
+        id:
+          type: string
+        full_name:
+          type: string
+        email:
+          type: string
+          format: email
+        tenant:
+          $ref: '#/components/schemas/TenantSummary'
+        role:
+          type: string
+          enum: [super-admin, operator, viewer]
+        status:
+          type: string
+          enum: [provisioned, active, suspended, locked, deactivated, reset_pending]
+        access_methods:
+          type: array
+          items:
+            type: string
+            enum: [company_account, password]
+        mfa_policy:
+          type: string
+          enum: [required, optional, inherited]
+        lockout:
+          oneOf:
+            - $ref: '#/components/schemas/LockoutSummary'
+            - type: 'null'
+    TenantSummary:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+    LockoutSummary:
+      type: object
+      required: [status, reason, locked_until]
+      properties:
+        status:
+          type: string
+        reason:
+          type: string
+        locked_until:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+    EnterpriseUserListResponse:
+      type: object
+      required: [items, page, perPage, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnterpriseUserSummary'
+        page:
+          type: integer
+        perPage:
+          type: integer
+        total:
+          type: integer
+    DeleteEnterpriseUserResponse:
+      type: object
+      required: [status, removedFromList, deletedAt, deletedBy]
+      properties:
+        status:
+          type: string
+          enum: [deleted]
+        removedFromList:
+          type: boolean
+        deletedAt:
+          type: string
+          format: date-time
+        deletedBy:
+          type: object
+          required: [id, fullName]
+          properties:
+            id:
+              type: string
+            fullName:
+              type: string
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+    ValidationErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, fieldErrors]
+          properties:
+            code:
+              type: string
+              enum: [VALIDATION_FAILED]
+            message:
+              type: string
+            fieldErrors:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string

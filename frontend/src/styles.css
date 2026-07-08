@@ -15,3 +15,12 @@ textarea {
   font: inherit;
 }
 
+.shell__offcanvas-panel {
+  width: min(85vw, 320px);
+  background: #101820;
+  color: #f5f7fa;
+}
+
+.shell__offcanvas-panel .offcanvas-body {
+  padding: 20px;
+}

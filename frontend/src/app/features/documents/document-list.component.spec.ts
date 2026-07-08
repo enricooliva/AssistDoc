@@ -1,6 +1,97 @@
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
+import { AuthService } from '../../core/auth/auth.service';
+import { DocumentApiService } from './document-api.service';
+import { DocumentListComponent } from './document-list.component';
+
+class AuthServiceStub {
+  role: 'super-admin' | 'operator' | 'viewer' = 'operator';
+
+  hasAnyRole(roles: string[]): boolean {
+    return roles.includes(this.role);
+  }
+}
+
+class DocumentApiServiceStub {
+  readonly documents = signal([{
+    id: 'doc-1',
+    filename: 'Manuale Aziendale.txt',
+    mediaType: 'text/plain',
+    sizeBytes: 200,
+    tags: ['manuale', 'tenant'],
+    status: 'ready' as const,
+    uploadedAt: new Date().toISOString(),
+    lastStatusAt: new Date().toISOString(),
+    uploadedBy: { id: '1', fullName: 'Operator Demo' },
+    deletedBy: null,
+    failureReason: null,
+    segmentsCount: 1,
+    searchableSegmentsCount: 1,
+  }]);
+  readonly page = signal(1);
+  readonly perPage = signal(25);
+  readonly total = signal(1);
+  readonly loading = signal(false);
+  readonly deletingDocumentId = signal<string | null>(null);
+  readonly error = signal('');
+  readonly loadDocuments = jasmine.createSpy('loadDocuments').and.resolveTo();
+  readonly deleteDocument = jasmine.createSpy('deleteDocument').and.resolveTo({
+    documentId: 'doc-1',
+    status: 'deleted',
+    removedFromList: true,
+  });
+}
+
 describe('DocumentListComponent', () => {
-  it('shows document list', () => {
-    expect(true).toBeTrue();
+  let fixture: ComponentFixture<DocumentListComponent>;
+  let api: DocumentApiServiceStub;
+  let authService: AuthServiceStub;
+
+  beforeEach(async () => {
+    api = new DocumentApiServiceStub();
+    authService = new AuthServiceStub();
+
+    await TestBed.configureTestingModule({
+      imports: [DocumentListComponent],
+      providers: [
+        { provide: AuthService, useValue: authService },
+        { provide: DocumentApiService, useValue: api },
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(DocumentListComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+  });
+
+  it('renders document rows with tags and uploader metadata', () => {
+    expect(fixture.nativeElement.textContent).toContain('Manuale Aziendale.txt');
+    expect(fixture.nativeElement.textContent).toContain('Tag: manuale, tenant');
+    expect(fixture.nativeElement.textContent).toContain('Caricato da Operator Demo');
+  });
+
+  it('shows pagination controls for the list', () => {
+    expect(fixture.nativeElement.textContent).toContain('Pagina 1 di 1');
+    expect(fixture.nativeElement.textContent).toContain('Precedente');
+    expect(fixture.nativeElement.textContent).toContain('Successiva');
+  });
+
+  it('reveals a soft delete confirmation before deleting a document', async () => {
+    fixture.nativeElement.querySelector('button.btn-outline-danger')?.click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('La rimozione sarà una soft delete');
+    expect(fixture.nativeElement.textContent).toContain('Conferma eliminazione');
+  });
+
+  it('hides delete actions for viewers', async () => {
+    authService.role = 'viewer';
+    fixture = TestBed.createComponent(DocumentListComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).not.toContain('Elimina');
   });
 });
-

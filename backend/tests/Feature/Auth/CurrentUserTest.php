@@ -33,6 +33,22 @@ class CurrentUserTest extends TestCase
     }
 
     #[Test]
+    public function it_restores_the_current_user_after_password_login(): void
+    {
+        $loginResponse = $this->postJson('/api/v1/auth/password/login', [
+            'email' => 'viewer@assistdoc.local',
+            'password' => 'password123',
+        ])->assertOk();
+
+        $token = (string) $loginResponse->json('token');
+
+        $this->withToken($token)
+            ->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonPath('user.email', 'viewer@assistdoc.local');
+    }
+
+    #[Test]
     public function it_rejects_requests_without_a_valid_token(): void
     {
         $response = $this->getJson('/api/v1/auth/me');
@@ -58,6 +74,21 @@ class CurrentUserTest extends TestCase
         $response = $this->withToken($token)->getJson('/api/v1/auth/me');
 
         $response->assertStatus(401)
+            ->assertJsonPath('error.code', 'UNAUTHENTICATED');
+    }
+
+    #[Test]
+    public function it_rejects_a_soft_deleted_user_when_restoring_the_session(): void
+    {
+        $user = User::query()->where('email', 'viewer@assistdoc.local')->firstOrFail();
+        $token = $this->loginAndReturnToken('viewer@assistdoc.local');
+
+        $user->deleted_by_user_id = User::query()->where('email', 'admin@assistdoc.local')->firstOrFail()->id;
+        $user->delete();
+
+        $this->withToken($token)
+            ->getJson('/api/v1/auth/me')
+            ->assertStatus(401)
             ->assertJsonPath('error.code', 'UNAUTHENTICATED');
     }
 

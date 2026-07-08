@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MessageCitation extends Model
 {
@@ -20,5 +21,23 @@ class MessageCitation extends Model
         'source_label',
         'created_at',
     ];
-}
 
+    protected $casts = [
+        'created_at' => 'datetime',
+    ];
+
+    public function chatMessage(): BelongsTo
+    {
+        return $this->belongsTo(ChatMessage::class, 'chat_message_id');
+    }
+
+    public function document(): BelongsTo
+    {
+        return $this->belongsTo(Document::class);
+    }
+
+    public function documentSegment(): BelongsTo
+    {
+        return $this->belongsTo(DocumentSegment::class, 'document_segment_id');
+    }
+}

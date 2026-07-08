@@ -1,0 +1,17 @@
+<div class="text-input-highlight-container ">
+    <div #backdrop class="text-highlight-element" [innerHTML]="highlightedText"></div>
+    <textarea
+        [formControl]="formControl"
+        [cols]="to.cols"
+        [rows]="to.rows"
+        class="form-control text-input-element"
+        [class.is-invalid]="showError"
+        [formlyAttributes]="field"
+        (scroll)="handleScroll()"
+        #textarea
+    >
+  </textarea>    
+</div>
+  
+
+

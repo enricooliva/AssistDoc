@@ -26,4 +26,9 @@ class RoleAssignment extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function assignedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_by_user_id');
+    }
 }

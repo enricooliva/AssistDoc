@@ -29,7 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'error' => [
                     'code' => 'VALIDATION_FAILED',
                     'message' => 'La richiesta non e valida.',
-                    'details' => $exception->errors(),
+                    'fieldErrors' => $exception->errors(),
                 ],
             ], 422);
         });

@@ -13,7 +13,12 @@ import { DocumentUploadComponent } from './document-upload.component';
       <app-document-list />
     </section>
   `,
-  styles: [`.documents-page { display: grid; gap: 16px; }`],
+  styles: [`
+    .documents-page {
+      display: grid;
+      gap: 20px;
+      align-items: start;
+    }
+  `],
 })
 export class DocumentsPageComponent {}
-
