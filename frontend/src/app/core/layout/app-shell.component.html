@@ -1,0 +1,62 @@
+<ng-template #sidebarTemplate>
+  <div class="shell__sidebar-inner">
+    <div class="shell__brand">
+      <div class="shell__brand-mark">A</div>
+      <div>
+        <div class="shell__brand-name" id="assistdoc-shell-sidebar-title">AssistDoc</div>
+        <div class="shell__brand-subtitle">{{ tenant()?.name }}</div>
+      </div>
+    </div>
+
+    <button *ngIf="isMobileViewport()" type="button" class="btn btn-outline-light shell__close-button" (click)="closeSidebarOverlay()">
+      Chiudi menu
+    </button>
+
+    <nav class="shell__nav" aria-labelledby="assistdoc-shell-sidebar-title">
+      <a *ngIf="canAccessChatAndDocuments()" class="shell__nav-item" routerLink="/" routerLinkActive="shell__nav-item--active" [routerLinkActiveOptions]="{ exact: true }" (click)="handleSidebarNavigation()">Chat</a>
+      <a *ngIf="canAccessChatAndDocuments()" class="shell__nav-item" routerLink="/documents" routerLinkActive="shell__nav-item--active" (click)="handleSidebarNavigation()">Documenti</a>
+      <a *ngIf="canManageTenants()" class="shell__nav-item" routerLink="/tenants" routerLinkActive="shell__nav-item--active" (click)="handleSidebarNavigation()">Tenant</a>
+      <a *ngIf="canManageUsers()" class="shell__nav-item" routerLink="/users" routerLinkActive="shell__nav-item--active" (click)="handleSidebarNavigation()">Utenti</a>
+      <a *ngIf="canViewAudit()" class="shell__nav-item" routerLink="/audit" routerLinkActive="shell__nav-item--active" (click)="handleSidebarNavigation()">Audit</a>
+    </nav>
+  </div>
+</ng-template>
+
+<div class="shell" [class.shell--collapsed]="sidebarCollapsed()" [class.shell--mobile]="isMobileViewport()">
+  <aside *ngIf="!isMobileViewport()" class="shell__sidebar shell__sidebar--inline">
+    <ng-container *ngTemplateOutlet="sidebarTemplate"></ng-container>
+  </aside>
+
+  <main class="shell__main">
+    <header class="shell__header">
+      <div class="shell__header-title">
+        <button
+          class="shell__toggle"
+          type="button"
+          (click)="toggleSidebar()"
+          [attr.aria-label]="sidebarToggleLabel()"
+          [attr.title]="sidebarToggleLabel()"
+        >
+          <i class="bi" [ngClass]="sidebarToggleIcon()"></i>
+          <span class="visually-hidden">{{ sidebarToggleLabel() }}</span>
+        </button>
+        <div>
+          <h1>Assistente documentale privato</h1>
+          <p>Risposte contestuali solo dai documenti del tenant.</p>
+        </div>
+      </div>
+      <div class="shell__user">
+        <div class="shell__avatar">{{ initials() }}</div>
+        <div>
+          <div>{{ session()?.user?.fullName }}</div>
+          <small>{{ session()?.user?.role }}</small>
+        </div>
+        <button type="button" (click)="signOut()">Esci</button>
+      </div>
+    </header>
+
+    <p *ngIf="feedback()" class="shell__feedback">{{ feedback() }}</p>
+
+    <router-outlet />
+  </main>
+</div>

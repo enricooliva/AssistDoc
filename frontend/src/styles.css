@@ -1,0 +1,26 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #f4f6f8;
+  color: #18212b;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+.shell__offcanvas-panel {
+  width: min(85vw, 320px);
+  background: #101820;
+  color: #f5f7fa;
+}
+
+.shell__offcanvas-panel .offcanvas-body {
+  padding: 20px;
+}

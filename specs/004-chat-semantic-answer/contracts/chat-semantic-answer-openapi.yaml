@@ -1,0 +1,342 @@
+openapi: 3.1.0
+info:
+  title: AssistDoc Grounded Chat API
+  version: 1.0.0
+  description: Versioned REST contract for grounded tenant chat responses.
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+tags:
+  - name: Chat
+paths:
+  /chat/conversations:
+    get:
+      tags: [Chat]
+      summary: List tenant chat conversations
+      x-roles: [super-admin, operator, viewer]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Paginated conversations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationCollection'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Chat]
+      summary: Create a tenant chat conversation
+      x-roles: [super-admin, operator, viewer]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  maxLength: 120
+      responses:
+        '201':
+          description: Conversation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+              examples:
+                default:
+                  value:
+                    id: "12"
+                    title: "Nuova conversazione"
+                    status: "active"
+                    lastMessageAt: "2026-05-11T10:00:00Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /chat/conversations/{conversationId}:
+    get:
+      tags: [Chat]
+      summary: Read a conversation and its messages
+      x-roles: [super-admin, operator, viewer]
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      responses:
+        '200':
+          description: Conversation thread
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /chat/conversations/{conversationId}/archive:
+    post:
+      tags: [Chat]
+      summary: Archive a tenant chat conversation
+      x-roles: [super-admin, operator, viewer]
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      responses:
+        '200':
+          description: Conversation archived
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /chat/conversations/{conversationId}/messages:
+    post:
+      tags: [Chat]
+      summary: Submit a question and receive a grounded answer
+      x-roles: [super-admin, operator, viewer]
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question:
+                  type: string
+                  minLength: 1
+                  maxLength: 4000
+      responses:
+        '200':
+          description: Question answered or declined with sufficient context
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatExchange'
+              examples:
+                answered:
+                  value:
+                    conversationId: "12"
+                    userMessage:
+                      id: "44"
+                      actorType: "user"
+                      body: "Come funziona l'isolamento tenant?"
+                      responseState: null
+                      citations: null
+                      createdAt: "2026-05-11T10:00:00Z"
+                    assistantMessage:
+                      id: "45"
+                      actorType: "assistant"
+                      body: "Nei documenti del tenant risulta che AssistDoc applica isolamento tenant lato server."
+                      responseState: "answered"
+                      citations:
+                        - documentId: "7"
+                          documentName: "Manuale Tenant.pdf"
+                          sourceLabel: "Segmento 1"
+                          quoteText: "AssistDoc applica isolamento tenant lato server."
+                      createdAt: "2026-05-11T10:00:02Z"
+                insufficientInformation:
+                  value:
+                    conversationId: "12"
+                    userMessage:
+                      id: "46"
+                      actorType: "user"
+                      body: "Qual è il piano ferie del reparto estero?"
+                      responseState: null
+                      citations: null
+                      createdAt: "2026-05-11T10:10:00Z"
+                    assistantMessage:
+                      id: "47"
+                      actorType: "assistant"
+                      body: "Non ho trovato informazioni sufficienti nei documenti del tenant per rispondere in modo affidabile."
+                      responseState: "insufficient_information"
+                      citations: []
+                      createdAt: "2026-05-11T10:10:02Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+    PerPage:
+      name: perPage
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    ConversationId:
+      name: conversationId
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    Unauthorized:
+      description: Authentication required or invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Authenticated but not allowed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found in tenant scope
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationError:
+      description: Invalid request payload
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      fieldErrors:
+                        type: object
+                        additionalProperties:
+                          type: array
+                          items:
+                            type: string
+    Conflict:
+      description: Resource exists but cannot accept the requested state transition
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+    Conversation:
+      type: object
+      required: [id, title, status, lastMessageAt]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+          description: Generated automatically from the first user question while the conversation still has the default placeholder title.
+        status:
+          type: string
+          enum: [active, archived]
+        lastMessageAt:
+          type: string
+          format: date-time
+    ConversationCollection:
+      type: object
+      required: [items, page, perPage, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Conversation'
+        page:
+          type: integer
+        perPage:
+          type: integer
+        total:
+          type: integer
+    ConversationDetail:
+      type: object
+      required: [conversation, messages]
+      properties:
+        conversation:
+          $ref: '#/components/schemas/Conversation'
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+    ChatExchange:
+      type: object
+      required: [conversationId, userMessage, assistantMessage]
+      properties:
+        conversationId:
+          type: string
+        userMessage:
+          $ref: '#/components/schemas/ChatMessage'
+        assistantMessage:
+          $ref: '#/components/schemas/ChatMessage'
+    ChatMessage:
+      type: object
+      required: [id, actorType, body, createdAt]
+      properties:
+        id:
+          type: string
+        actorType:
+          type: string
+          enum: [user, assistant]
+        body:
+          type: string
+        responseState:
+          type: string
+          enum: [answered, insufficient_information, failed]
+          nullable: true
+        citations:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/ChatCitation'
+        createdAt:
+          type: string
+          format: date-time
+    ChatCitation:
+      type: object
+      required: [documentId, documentName, sourceLabel, quoteText]
+      properties:
+        documentId:
+          type: string
+        documentName:
+          type: string
+        sourceLabel:
+          type: string
+        quoteText:
+          type: string

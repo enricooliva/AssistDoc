@@ -1,0 +1,312 @@
+openapi: 3.1.0
+info:
+  title: AssistDoc Text Content Ingestion API
+  version: 1.0.0
+  description: >
+    Contract for adding searchable content through file uploads and direct text
+    input inside the existing documents feature.
+servers:
+  - url: http://localhost:8000
+tags:
+  - name: Documents
+paths:
+  /api/v1/documents:
+    post:
+      tags: [Documents]
+      summary: Create a document from an uploaded file
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DocumentUploadRequest'
+      responses:
+        '201':
+          description: Document accepted for processing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentEnvelope'
+        '403':
+          description: Caller is not authorized to create documents.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /api/v1/documents/text:
+    post:
+      tags: [Documents]
+      summary: Create a document from direct text input
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentTextRequest'
+      responses:
+        '201':
+          description: Text content accepted for processing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentEnvelope'
+        '403':
+          description: Caller is not authorized to create documents.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /api/v1/documents/{documentId}:
+    get:
+      tags: [Documents]
+      summary: Load a document detail
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '200':
+          description: Document returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentEnvelope'
+        '403':
+          description: Caller is not authorized to view the document.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Document not found in the caller tenant scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Documents]
+      summary: Delete a document and remove related search artifacts
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '204':
+          description: Document deleted and searchable artifacts removed.
+        '403':
+          description: Caller is not authorized to delete the document.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Document not found in the caller tenant scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/documents/{documentId}/retry:
+    post:
+      tags: [Documents]
+      summary: Retry preparation for an existing document
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '202':
+          description: Retry accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreparationRunEnvelope'
+        '403':
+          description: Caller is not authorized to retry the document.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Document not found in the caller tenant scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    DocumentId:
+      name: documentId
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    DocumentUploadRequest:
+      type: object
+      required: [file]
+      properties:
+        file:
+          type: string
+          format: binary
+        sourceLabel:
+          type: string
+          maxLength: 255
+          description: Optional display label for uploaded content.
+        tags:
+          type: array
+          items:
+            type: string
+      additionalProperties: false
+    DocumentTextRequest:
+      type: object
+      required: [sourceLabel, text]
+      properties:
+        sourceLabel:
+          type: string
+          minLength: 1
+          maxLength: 255
+        text:
+          type: string
+          minLength: 1
+          description: Pasted text that will be normalized and stored privately.
+        tags:
+          type: array
+          items:
+            type: string
+      additionalProperties: false
+    DocumentEnvelope:
+      type: object
+      required: [document]
+      properties:
+        document:
+          $ref: '#/components/schemas/DocumentSummary'
+    DocumentSummary:
+      type: object
+      required:
+        - id
+        - tenantId
+        - filename
+        - sourceType
+        - mediaType
+        - sizeBytes
+        - status
+        - tags
+        - uploadedAt
+      properties:
+        id:
+          type: string
+        tenantId:
+          type: string
+        filename:
+          type: string
+        sourceType:
+          type: string
+          enum: [file, text]
+        mediaType:
+          type: string
+        sizeBytes:
+          type: integer
+          minimum: 0
+        tags:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [queued, processing, ready, failed, deleted]
+        failureMessage:
+          oneOf:
+            - type: string
+            - type: 'null'
+        activeRetrievalModelProfileId:
+          oneOf:
+            - type: string
+            - type: 'null'
+        activeChunkingProfileId:
+          oneOf:
+            - type: string
+            - type: 'null'
+        uploadedAt:
+          type: string
+          format: date-time
+        processedAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        deletedAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+    PreparationRunEnvelope:
+      type: object
+      required: [preparationRun]
+      properties:
+        preparationRun:
+          $ref: '#/components/schemas/PreparationRunSummary'
+    PreparationRunSummary:
+      type: object
+      required: [documentId, status]
+      properties:
+        documentId:
+          type: string
+        preparationRunId:
+          oneOf:
+            - type: string
+            - type: 'null'
+        status:
+          type: string
+          enum: [queued, processing, ready, failed, not_found]
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+    ValidationErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, fieldErrors]
+          properties:
+            code:
+              type: string
+              enum: [VALIDATION_FAILED]
+            message:
+              type: string
+            fieldErrors:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string

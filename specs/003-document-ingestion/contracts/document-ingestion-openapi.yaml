@@ -1,0 +1,283 @@
+openapi: 3.1.0
+info:
+  title: AssistDoc Document Ingestion API
+  version: 1.0.0
+  description: Versioned API contract for tenant-scoped document upload and ingestion readiness.
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+tags:
+  - name: Documents
+paths:
+  /documents:
+    get:
+      tags: [Documents]
+      summary: List tenant documents
+      x-roles: [super-admin, operator, viewer]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - name: status
+          in: query
+          description: Filter by ingestion state
+          schema:
+            $ref: '#/components/schemas/DocumentStatus'
+      responses:
+        '200':
+          description: Paginated document list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentCollection'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Documents]
+      summary: Upload a document for secure storage and ingestion
+      x-roles: [super-admin, operator]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                sourceLabel:
+                  type: string
+                  maxLength: 255
+                  description: Optional user-supplied label shown in document detail.
+      responses:
+        '201':
+          description: Document accepted and queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/FileTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /documents/{documentId}:
+    get:
+      tags: [Documents]
+      summary: Get tenant document detail
+      x-roles: [super-admin, operator, viewer]
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '200':
+          description: Document detail with ingestion information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /documents/{documentId}/retry:
+    post:
+      tags: [Documents]
+      summary: Retry failed document ingestion
+      x-roles: [super-admin, operator]
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '202':
+          description: Retry accepted and document re-queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentRetryResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+components:
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PerPage:
+      name: perPage
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    DocumentId:
+      name: documentId
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    DocumentStatus:
+      type: string
+      enum: [accepted, queued, processing, ready, failed]
+    DocumentListItem:
+      type: object
+      required:
+        - id
+        - filename
+        - mediaType
+        - sizeBytes
+        - status
+        - uploadedAt
+        - lastStatusAt
+      properties:
+        id:
+          type: string
+        filename:
+          type: string
+        mediaType:
+          type: string
+        sizeBytes:
+          type: integer
+          minimum: 1
+        status:
+          $ref: '#/components/schemas/DocumentStatus'
+        uploadedAt:
+          type: string
+          format: date-time
+        lastStatusAt:
+          type: string
+          format: date-time
+        indexedAt:
+          type: string
+          format: date-time
+          nullable: true
+        failureReason:
+          type: string
+          nullable: true
+        uploadedBy:
+          type: object
+          required: [id, fullName]
+          properties:
+            id:
+              type: string
+            fullName:
+              type: string
+    DocumentDetail:
+      allOf:
+        - $ref: '#/components/schemas/DocumentListItem'
+        - type: object
+          properties:
+            segmentsCount:
+              type: integer
+              minimum: 0
+            searchableSegmentsCount:
+              type: integer
+              minimum: 0
+            sourceLabel:
+              type: string
+              nullable: true
+    DocumentCollection:
+      type: object
+      required: [items, page, perPage, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentListItem'
+        page:
+          type: integer
+        perPage:
+          type: integer
+        total:
+          type: integer
+    DocumentRetryResponse:
+      type: object
+      required: [documentId, status]
+      properties:
+        documentId:
+          type: string
+        status:
+          $ref: '#/components/schemas/DocumentStatus'
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+  responses:
+    Unauthorized:
+      description: Missing or invalid bearer token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Authenticated user lacks required role
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Document not found in current tenant
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Document is not eligible for retry in its current state
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationError:
+      description: Request payload failed validation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    FileTooLarge:
+      description: Uploaded file exceeds allowed size
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnsupportedMediaType:
+      description: Uploaded file type is not supported
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

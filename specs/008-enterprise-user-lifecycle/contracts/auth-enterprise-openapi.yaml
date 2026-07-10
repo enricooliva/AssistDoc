@@ -1,0 +1,631 @@
+openapi: 3.1.0
+info:
+  title: AssistDoc Enterprise Authentication and User Lifecycle API
+  version: 1.0.0
+  description: >
+    Versioned contract for unified enterprise login, managed-password recovery,
+    MFA completion, and administrator-driven user lifecycle management.
+servers:
+  - url: http://localhost:8000
+tags:
+  - name: Authentication
+  - name: Enterprise Users
+paths:
+  /api/v1/auth/options:
+    get:
+      tags: [Authentication]
+      summary: Get unified login options
+      security: []
+      responses:
+        '200':
+          description: Login options returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginOptionsResponse'
+  /api/v1/auth/company-account/start:
+    post:
+      tags: [Authentication]
+      summary: Start company-account authentication
+      security: []
+      responses:
+        '200':
+          description: Company-account sign-in was started successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyAccountStartResponse'
+        '403':
+          description: Company-account sign-in is not allowed for the requested user or context.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/auth/password/login:
+    post:
+      tags: [Authentication]
+      summary: Authenticate with managed email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordLoginRequest'
+      responses:
+        '200':
+          description: Primary authentication succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnifiedAuthResponse'
+        '401':
+          description: Credentials are invalid or access cannot be granted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Additional verification, reset, or lifecycle intervention is required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationActionRequiredResponse'
+        '422':
+          description: Validation failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /api/v1/auth/mfa/verify:
+    post:
+      tags: [Authentication]
+      summary: Verify the additional authentication factor
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MfaVerifyRequest'
+      responses:
+        '200':
+          description: MFA verification succeeded and the authenticated session was issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSuccessResponse'
+        '401':
+          description: Verification failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: The challenge expired, was denied, or the account is locked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/auth/password-reset:
+    post:
+      tags: [Authentication]
+      summary: Initiate password reset for managed-password accounts
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetStartRequest'
+      responses:
+        '202':
+          description: Password reset was accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordResetStartResponse'
+        '403':
+          description: Password reset is not allowed for this account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/auth/password-reset/complete:
+    post:
+      tags: [Authentication]
+      summary: Complete password reset with a valid reset journey
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetCompleteRequest'
+      responses:
+        '200':
+          description: Password reset completed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordResetCompleteResponse'
+        '409':
+          description: Reset journey is invalid, expired, or no longer allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Sign out the current authenticated client
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Session invalidated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoutResponse'
+        '401':
+          description: Caller is not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/auth/me:
+    get:
+      tags: [Authentication]
+      summary: Get current authenticated user context
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Authenticated user context returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUserResponse'
+        '401':
+          description: Caller is not authenticated or token is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/users:
+    get:
+      tags: [Enterprise Users]
+      summary: List provisioned enterprise users
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User list returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnterpriseUserListResponse'
+        '403':
+          description: Caller is not authorized to manage users.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags: [Enterprise Users]
+      summary: Provision a new enterprise user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnterpriseUserCreateRequest'
+      responses:
+        '201':
+          description: User provisioned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnterpriseUserResponse'
+        '403':
+          description: Caller is not authorized to provision users.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /api/v1/users/{userId}:
+    get:
+      tags: [Enterprise Users]
+      summary: Get an enterprise user detail
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User detail returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnterpriseUserResponse'
+        '403':
+          description: Caller is not authorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found in governance scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/users/{userId}/status:
+    patch:
+      tags: [Enterprise Users]
+      summary: Change enterprise user lifecycle status
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnterpriseUserStatusUpdateRequest'
+      responses:
+        '200':
+          description: User lifecycle status updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnterpriseUserResponse'
+        '403':
+          description: Caller is not authorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Requested lifecycle transition is not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/users/{userId}/unlock:
+    post:
+      tags: [Enterprise Users]
+      summary: Release an active lockout when policy allows it
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Lockout released successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnterpriseUserResponse'
+        '403':
+          description: Caller is not authorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: No releasable lockout exists or policy forbids the action.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  parameters:
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    LoginOptionsResponse:
+      type: object
+      required: [options]
+      properties:
+        options:
+          type: array
+          minItems: 2
+          items:
+            type: object
+            required: [id, label]
+            properties:
+              id:
+                type: string
+                enum: [company_account, password]
+              label:
+                type: string
+    CompanyAccountStartResponse:
+      type: object
+      required: [status, redirect_url]
+      properties:
+        status:
+          type: string
+          enum: [redirect_required]
+        redirect_url:
+          type: string
+          format: uri
+    PasswordLoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 8
+    MfaVerifyRequest:
+      type: object
+      required: [challenge_id, verification_code]
+      properties:
+        challenge_id:
+          type: string
+        verification_code:
+          type: string
+    PasswordResetStartRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+    PasswordResetCompleteRequest:
+      type: object
+      required: [reset_id, new_password]
+      properties:
+        reset_id:
+          type: string
+        new_password:
+          type: string
+          minLength: 12
+    PasswordResetStartResponse:
+      type: object
+      required: [status, message]
+      properties:
+        status:
+          type: string
+          enum: [accepted]
+        message:
+          type: string
+    PasswordResetCompleteResponse:
+      type: object
+      required: [status, message]
+      properties:
+        status:
+          type: string
+          enum: [completed]
+        message:
+          type: string
+    UnifiedAuthResponse:
+      oneOf:
+        - $ref: '#/components/schemas/AuthSuccessResponse'
+        - $ref: '#/components/schemas/AuthenticationActionRequiredResponse'
+    AuthenticationActionRequiredResponse:
+      type: object
+      required: [status, action, message]
+      properties:
+        status:
+          type: string
+          enum: [action_required]
+        action:
+          type: string
+          enum: [mfa_required, password_reset_required, account_locked, access_denied]
+        challenge_id:
+          type: string
+          nullable: true
+        message:
+          type: string
+    AuthSuccessResponse:
+      type: object
+      required: [token, token_type, expires_in, user]
+      properties:
+        token:
+          type: string
+        token_type:
+          type: string
+          enum: [Bearer]
+        expires_in:
+          type: integer
+          minimum: 1
+        user:
+          $ref: '#/components/schemas/AuthenticatedUserContext'
+    CurrentUserResponse:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: '#/components/schemas/AuthenticatedUserContext'
+    LogoutResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+    AuthenticatedUserContext:
+      type: object
+      required: [id, full_name, email, tenant, role]
+      properties:
+        id:
+          type: string
+        full_name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [super-admin, operator, viewer]
+        tenant:
+          $ref: '#/components/schemas/TenantSummary'
+    TenantSummary:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+    EnterpriseUserCreateRequest:
+      type: object
+      required: [full_name, email, tenant_id, role, access_methods, status]
+      properties:
+        full_name:
+          type: string
+        email:
+          type: string
+          format: email
+        tenant_id:
+          type: string
+        role:
+          type: string
+          enum: [super-admin, operator, viewer]
+        access_methods:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            enum: [company_account, password]
+        status:
+          type: string
+          enum: [provisioned, active, suspended, locked, deactivated]
+        mfa_policy:
+          type: string
+          enum: [required, optional, inherited]
+    EnterpriseUserStatusUpdateRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [active, suspended, locked, deactivated]
+        reason:
+          type: string
+    EnterpriseUserResponse:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: '#/components/schemas/EnterpriseUserSummary'
+    EnterpriseUserListResponse:
+      type: object
+      required: [items, page, perPage, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnterpriseUserSummary'
+        page:
+          type: integer
+          minimum: 1
+        perPage:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+    EnterpriseUserSummary:
+      type: object
+      required: [id, full_name, email, tenant, role, status, access_methods, mfa_policy]
+      properties:
+        id:
+          type: string
+        full_name:
+          type: string
+        email:
+          type: string
+          format: email
+        tenant:
+          $ref: '#/components/schemas/TenantSummary'
+        role:
+          type: string
+          enum: [super-admin, operator, viewer]
+        status:
+          type: string
+          enum: [provisioned, active, suspended, locked, deactivated, reset_pending]
+        access_methods:
+          type: array
+          items:
+            type: string
+            enum: [company_account, password]
+        mfa_policy:
+          type: string
+          enum: [required, optional, inherited]
+        lockout:
+          type: object
+          nullable: true
+          properties:
+            status:
+              type: string
+            reason:
+              type: string
+            locked_until:
+              type: string
+              format: date-time
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - UNAUTHENTICATED
+                - ACCESS_DENIED
+                - MFA_REQUIRED
+                - PASSWORD_RESET_REQUIRED
+                - ACCOUNT_LOCKED
+                - INVALID_LIFECYCLE_STATE
+                - NOT_FOUND
+            message:
+              type: string
+    ValidationErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, details]
+          properties:
+            code:
+              type: string
+              enum: [VALIDATION_FAILED]
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string

@@ -1,0 +1,597 @@
+openapi: 3.1.0
+info:
+  title: AssistDoc API
+  version: 1.0.0
+  description: Versioned REST API contract for the AssistDoc MVP.
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: Documents
+  - name: Search
+  - name: Chat
+  - name: Audit
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Sign in with development credentials
+      security: []
+      x-roles: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Sign out current user
+      x-roles: [super-admin, operator, viewer]
+      responses:
+        '204':
+          description: Signed out
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current authenticated user and tenant context
+      x-roles: [super-admin, operator, viewer]
+      responses:
+        '200':
+          description: Current session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /documents:
+    get:
+      tags: [Documents]
+      summary: List tenant documents
+      x-roles: [super-admin, operator, viewer]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [uploaded, queued, processing, indexed, failed]
+      responses:
+        '200':
+          description: Paginated documents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentCollection'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Documents]
+      summary: Upload a document
+      x-roles: [super-admin, operator]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Document accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /documents/{documentId}:
+    get:
+      tags: [Documents]
+      summary: Get document detail
+      x-roles: [super-admin, operator, viewer]
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '200':
+          description: Document detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /documents/{documentId}/retry:
+    post:
+      tags: [Documents]
+      summary: Retry failed document processing
+      x-roles: [super-admin, operator]
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '202':
+          description: Retry accepted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /search/queries:
+    post:
+      tags: [Search]
+      summary: Execute semantic search
+      x-roles: [super-admin, operator, viewer]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /chat/conversations:
+    get:
+      tags: [Chat]
+      summary: List user chat conversations
+      x-roles: [super-admin, operator, viewer]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Paginated conversations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationCollection'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Chat]
+      summary: Create a conversation
+      x-roles: [super-admin, operator, viewer]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  maxLength: 120
+      responses:
+        '201':
+          description: Conversation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /chat/conversations/{conversationId}/messages:
+    post:
+      tags: [Chat]
+      summary: Submit a question and receive a cited answer
+      x-roles: [super-admin, operator, viewer]
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question:
+                  type: string
+                  minLength: 1
+                  maxLength: 4000
+      responses:
+        '200':
+          description: Question and answer pair
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatExchange'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /audit-events:
+    get:
+      tags: [Audit]
+      summary: List tenant audit events
+      x-roles: [super-admin]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - name: actor
+          in: query
+          schema:
+            type: string
+        - name: eventType
+          in: query
+          schema:
+            type: string
+        - name: outcome
+          in: query
+          schema:
+            type: string
+            enum: [success, failure, denied]
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Paginated audit events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEventCollection'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+    PerPage:
+      name: perPage
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    DocumentId:
+      name: documentId
+      in: path
+      required: true
+      schema:
+        type: string
+    ConversationId:
+      name: conversationId
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    Unauthorized:
+      description: Authentication required or invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Authenticated but not allowed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found in tenant scope
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Resource state conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationError:
+      description: Invalid request payload
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - type: object
+                properties:
+                  fieldErrors:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: string
+  schemas:
+    AuthSession:
+      type: object
+      required: [token, user, tenant]
+      properties:
+        token:
+          type: string
+        user:
+          $ref: '#/components/schemas/UserSummary'
+        tenant:
+          $ref: '#/components/schemas/TenantSummary'
+    TenantSummary:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+    UserSummary:
+      type: object
+      required: [id, email, fullName, role]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        fullName:
+          type: string
+        role:
+          type: string
+          enum: [super-admin, operator, viewer]
+    Document:
+      type: object
+      required: [id, filename, status, uploadedAt, lastStatusAt]
+      properties:
+        id:
+          type: string
+        filename:
+          type: string
+        mediaType:
+          type: string
+        sizeBytes:
+          type: integer
+        status:
+          type: string
+          enum: [uploaded, queued, processing, indexed, failed]
+        failureReason:
+          type: string
+          nullable: true
+        uploadedAt:
+          type: string
+          format: date-time
+        lastStatusAt:
+          type: string
+          format: date-time
+        indexedAt:
+          type: string
+          format: date-time
+          nullable: true
+    DocumentCollection:
+      type: object
+      required: [items, page, perPage, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Document'
+        page:
+          type: integer
+        perPage:
+          type: integer
+        total:
+          type: integer
+    SearchResponse:
+      type: object
+      required: [query, results]
+      properties:
+        query:
+          type: string
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchResult'
+    SearchResult:
+      type: object
+      required: [documentId, documentName, snippet, score, sourceLabel]
+      properties:
+        documentId:
+          type: string
+        documentName:
+          type: string
+        snippet:
+          type: string
+        score:
+          type: number
+        sourceLabel:
+          type: string
+    Conversation:
+      type: object
+      required: [id, title, status, lastMessageAt]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+          enum: [active, archived]
+        lastMessageAt:
+          type: string
+          format: date-time
+    ConversationCollection:
+      type: object
+      required: [items, page, perPage, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Conversation'
+        page:
+          type: integer
+        perPage:
+          type: integer
+        total:
+          type: integer
+    ChatExchange:
+      type: object
+      required: [conversationId, userMessage, assistantMessage]
+      properties:
+        conversationId:
+          type: string
+        userMessage:
+          $ref: '#/components/schemas/ChatMessage'
+        assistantMessage:
+          $ref: '#/components/schemas/ChatMessage'
+    ChatMessage:
+      type: object
+      required: [id, actorType, body, createdAt]
+      properties:
+        id:
+          type: string
+        actorType:
+          type: string
+          enum: [user, assistant]
+        body:
+          type: string
+        responseState:
+          type: string
+          enum: [pending, completed, insufficient_information, failed]
+          nullable: true
+        citations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Citation'
+        createdAt:
+          type: string
+          format: date-time
+    Citation:
+      type: object
+      required: [documentId, documentName, sourceLabel, quoteText]
+      properties:
+        documentId:
+          type: string
+        documentName:
+          type: string
+        sourceLabel:
+          type: string
+        quoteText:
+          type: string
+    AuditEventCollection:
+      type: object
+      required: [items, page, perPage, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+        page:
+          type: integer
+        perPage:
+          type: integer
+        total:
+          type: integer
+    AuditEvent:
+      type: object
+      required: [id, eventType, outcome, occurredAt]
+      properties:
+        id:
+          type: string
+        actor:
+          type: string
+          nullable: true
+        eventType:
+          type: string
+        targetType:
+          type: string
+          nullable: true
+        targetId:
+          type: string
+          nullable: true
+        outcome:
+          type: string
+          enum: [success, failure, denied]
+        occurredAt:
+          type: string
+          format: date-time
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
